@@ -1,0 +1,18 @@
+[package]
+name = "memory-serve"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+brotli = "3.4"
+flate2 = "1.0"
+axum = { version = "0.6", default-features = false }
+memory-serve-macros = { path = "../memory-serve-macros" }
+tracing = "0.1"
+
+[dev-dependencies]
+tokio = { version = "1.33", features = ["rt", "macros"] }
+tower = "0.4"

@@ -1,0 +1,69 @@
+name: build and test
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - run: cargo fmt --all -- --check
+
+  outdated:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - run: cargo outdated --exit-code 1
+
+  deny:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: tweedegolf/ci-standard/.github/actions/cargo-deny@main
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: Swatinem/rust-cache@v2
+      with:
+        prefix-key: cargo
+        shared-key: build
+    - run: cargo build --all-features --all-targets --release
+
+  clippy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: Swatinem/rust-cache@v2
+      with:
+        prefix-key: cargo
+        shared-key: check
+    - run: cargo clippy --all-features --all-targets -- --deny clippy::all
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: Swatinem/rust-cache@v2
+      with:
+        prefix-key: cargo
+        shared-key: test
+    - run: cargo test --all-features --all-targets
+
+  udeps:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: Swatinem/rust-cache@v2
+      with:
+        prefix-key: cargo
+        shared-key: udeps
+    - uses: tweedegolf/ci-standard/.github/actions/cargo-udeps@main
