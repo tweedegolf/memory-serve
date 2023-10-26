@@ -76,6 +76,7 @@
 //! | [MemoryServe::enable_brotli]      | `true`                  | Allow to serve brotli encoded files                   |
 //! | [MemoryServe::html_cache_control] | `CacheConrol::Short`    | Cache control header to serve on HTML files           |
 //! | [MemoryServe::cache_control]      | `CacheConrol::Medium`   | Cache control header to serve on other files          |
+//! | [MemoryServe::add_alias]          | `[]`                    | Create a route / file alias                           |
 //!
 //! See [Cache control](index.html#cache-control) for the cache control options.
 //!
@@ -174,6 +175,7 @@ impl Default for ServeOptions {
 pub struct MemoryServe {
     options: ServeOptions,
     assets: &'static [Asset],
+    aliases: Vec<(&'static str, &'static str)>,
 }
 
 impl MemoryServe {
@@ -250,6 +252,13 @@ impl MemoryServe {
         self
     }
 
+    /// Create an alias for a route / file
+    pub fn add_alias(mut self, from: &'static str, to: &'static str) -> Self {
+        self.aliases.push((from, to));
+
+        self
+    }
+
     /// Create an axum `Router` instance that will serve the included static assets
     /// Caution! This method leaks memory. It should only be called once (at startup).
     pub fn into_router<S>(self) -> axum::Router<S>
@@ -315,6 +324,13 @@ impl MemoryServe {
             }
 
             router = router.route(asset.route, get(handler));
+
+            // add all aliases that point to the asset route
+            for (from, to) in self.aliases.iter() {
+                if *to == asset.route {
+                    router = router.route(from, get(handler));
+                }
+            }
         }
 
         router
@@ -596,5 +612,24 @@ mod tests {
             CacheControl::Long.as_header().1.to_str().unwrap(),
         )
         .await;
+    }
+
+    #[tokio::test]
+    async fn aliases() {
+        let memory_router = MemoryServe::new(load_assets!("static"))
+            .add_alias("/foobar", "/index.html")
+            .add_alias("/baz", "/index.html")
+            .into_router();
+        let (code, _) = get(memory_router.clone(), "/foobar", "accept", "*").await;
+        assert_eq!(code, 200);
+
+        let (code, _) = get(memory_router.clone(), "/baz", "accept", "*").await;
+        assert_eq!(code, 200);
+
+        let (code, _) = get(memory_router.clone(), "/index.html", "accept", "*").await;
+        assert_eq!(code, 200);
+
+        let (code, _) = get(memory_router.clone(), "/barfoo", "accept", "*").await;
+        assert_eq!(code, 404);
     }
 }

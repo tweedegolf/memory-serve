@@ -79,6 +79,7 @@ the following configuration methods:
 | `enable_brotli`      | `true`                  | Allow to serve brotli encoded files                   |
 | `html_cache_control` | `CacheConrol::Short`    | Cache control header to serve on HTML files           |
 | `cache_control`      | `CacheConrol::Medium`   | Cache control header to serve on other files          |
+| `add_alias`          | `[]`                    | Create a route / file alias                           |
 
 See `Cache control` for the cache control options.
 
