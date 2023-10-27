@@ -113,10 +113,14 @@ pub(crate) fn list_assets<P: AsRef<Path>>(path: P) -> Vec<Asset> {
             let route = path_to_route(entry.path());
 
             if brotli_bytes.is_empty() {
-                info!("including {:?} {} bytes", entry.path(), bytes.len());
+                info!("including {:?} {} bytes", route, bytes.len());
             } else {
-                info!("including {:?} {} -> {} bytes (compressed)", entry.path(), bytes.len(), brotli_bytes.len());
-
+                info!(
+                    "including {:?} {} -> {} bytes (compressed)",
+                    route,
+                    bytes.len(),
+                    brotli_bytes.len()
+                );
             };
 
             Some(Asset {

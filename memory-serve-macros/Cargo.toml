@@ -15,7 +15,7 @@ brotli = "3.4"
 mime_guess = "2.0"
 proc-macro2 = "1.0"
 sha256 = "1.4"
-walkdir = "2.4"
+walkdir = "2"
 tracing = "0.1"
 quote = { version = "1.0", default-features = false }
 syn = { version = "2.0", default-features = false }
