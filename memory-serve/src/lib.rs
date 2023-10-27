@@ -6,6 +6,9 @@
 //! [axum](https://github.com/tokio-rs/axum) Router. It automatically adds cache
 //! headers and handles file compression.
 //!
+//! During development (debug builds) files are served dynamically,
+//! they are read and compressed at request time.
+//!
 //! Text-based files like HTML or javascript
 //! are compressed using [brotli](https://en.wikipedia.org/wiki/Brotli)
 //! at compile time and decompressed at startup, to minimize the binary size.
@@ -282,23 +285,16 @@ impl MemoryServe {
             };
 
             if !bytes.is_empty() {
-                info!("serving {} {} bytes", asset.route, bytes.len());
-            }
-
-            if !asset.brotli_bytes.is_empty() {
-                info!(
-                    "serving {} (brotli compressed) {} bytes",
-                    asset.route,
-                    asset.brotli_bytes.len()
-                );
-            }
-
-            if !gzip_bytes.is_empty() {
-                info!(
-                    "serving {} (gzip compressed) {} bytes",
-                    asset.route,
-                    gzip_bytes.len()
-                );
+                if !asset.brotli_bytes.is_empty() {
+                    info!(
+                        "serving {} {} -> {} bytes (compressed)",
+                        asset.route,
+                        bytes.len(),
+                        asset.brotli_bytes.is_empty()
+                    );
+                } else {
+                    info!("serving {} {} bytes", asset.route, bytes.len());
+                }
             }
 
             let handler = |headers: HeaderMap| {
@@ -320,7 +316,7 @@ impl MemoryServe {
             }
 
             if Some(asset.route) == options.index_file {
-                info!("serving {} as index on /", asset.route,);
+                info!("serving {} as index on /", asset.route);
 
                 router = router.route("/", get(handler));
             }
@@ -330,6 +326,8 @@ impl MemoryServe {
             // add all aliases that point to the asset route
             for (from, to) in self.aliases.iter() {
                 if *to == asset.route {
+                    info!("serving {} as index on {}", asset.route, from);
+
                     router = router.route(from, get(handler));
                 }
             }
