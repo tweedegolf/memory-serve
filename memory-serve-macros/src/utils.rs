@@ -18,18 +18,21 @@ const COMPRESS_TYPES: &[&str] = &[
     "image/svg+xml",
 ];
 
-fn path_to_route(path: &Path) -> String {
-    "/".to_owned()
-        + path
-            .components()
-            .filter_map(|c| match c {
-                std::path::Component::Normal(s) => s.to_str(),
-                _ => None,
-            })
-            .skip(1)
-            .collect::<Vec<&str>>()
-            .join("/")
-            .as_str()
+fn path_to_route(base: &Path, path: &Path) -> String {
+    let relative_path = path
+        .strip_prefix(base)
+        .expect("Could not strap prefix from path");
+
+    let route = relative_path
+        .components()
+        .filter_map(|c| match c {
+            std::path::Component::Normal(s) => s.to_str(),
+            _ => None,
+        })
+        .collect::<Vec<&str>>()
+        .join("/");
+
+    format!("/{route}")
 }
 
 fn path_to_content_type(path: &Path) -> Option<String> {
@@ -63,8 +66,8 @@ fn skip_larger(compressed: Vec<u8>, original: &[u8]) -> Vec<u8> {
     }
 }
 
-pub(crate) fn list_assets<P: AsRef<Path>>(path: P) -> Vec<Asset> {
-    let mut assets: Vec<Asset> = WalkDir::new(path)
+pub(crate) fn list_assets(base_path: &Path) -> Vec<Asset> {
+    let mut assets: Vec<Asset> = WalkDir::new(base_path)
         .into_iter()
         .filter_map(|entry| entry.ok())
         .filter_map(|entry| {
@@ -73,11 +76,10 @@ pub(crate) fn list_assets<P: AsRef<Path>>(path: P) -> Vec<Asset> {
                 return None;
             };
 
+            let route = path_to_route(base_path, entry.path());
+
             let Ok(metadata) = entry.metadata() else {
-                warn!(
-                    "skipping file {:?}, could not get file metadata",
-                    entry.path()
-                );
+                warn!("skipping file {route}, could not get file metadata");
                 return None;
             };
 
@@ -88,19 +90,14 @@ pub(crate) fn list_assets<P: AsRef<Path>>(path: P) -> Vec<Asset> {
 
             // skip empty
             if metadata.len() == 0 {
-                warn!("skipping file {:?}: file empty", entry.path());
+                warn!("skipping file {route}: file empty");
                 return None;
             }
 
             let Some(content_type) = path_to_content_type(entry.path()) else {
-                warn!(
-                    "skipping file {:?}, could not determine file extension",
-                    entry.path()
-                );
+                warn!("skipping file {route}, could not determine file extension");
                 return None;
             };
-
-            let route = path_to_route(entry.path());
 
             // do not load assets into the binary in debug / development mode
             if cfg!(debug_assertions) {
@@ -115,7 +112,7 @@ pub(crate) fn list_assets<P: AsRef<Path>>(path: P) -> Vec<Asset> {
             }
 
             let Ok(bytes) = std::fs::read(entry.path()) else {
-                warn!("skipping file {:?}: file is not readable", entry.path());
+                warn!("skipping file {route}: file is not readable");
                 return None;
             };
 
@@ -130,11 +127,10 @@ pub(crate) fn list_assets<P: AsRef<Path>>(path: P) -> Vec<Asset> {
             };
 
             if brotli_bytes.is_empty() {
-                info!("including {:?} {} bytes", route, bytes.len());
+                info!("including {route} {} bytes", bytes.len());
             } else {
                 info!(
-                    "including {:?} {} -> {} bytes (compressed)",
-                    route,
+                    "including {route} {} -> {} bytes (compressed)",
                     bytes.len(),
                     brotli_bytes.len()
                 );

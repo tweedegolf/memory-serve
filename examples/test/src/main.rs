@@ -7,7 +7,7 @@ use tracing::info;
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    let memory_router = MemoryServe::new(load_assets!("static"))
+    let memory_router = MemoryServe::new(load_assets!("../../static"))
         .index_file(Some("/index.html"))
         .into_router();
 
