@@ -12,6 +12,13 @@ pub(crate) fn decompress_brotli(input: &[u8]) -> Option<Vec<u8>> {
     writer.into_inner().ok()
 }
 
+pub(crate) fn compress_brotli(input: &[u8]) -> Option<Vec<u8>> {
+    let mut writer = brotli::CompressorWriter::new(Vec::new(), 4096, 11, 22);
+    writer.write_all(input).ok()?;
+
+    Some(writer.into_inner())
+}
+
 pub(crate) fn compress_gzip(input: &[u8]) -> Option<Vec<u8>> {
     let mut writer = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
     writer.write_all(input).ok()?;

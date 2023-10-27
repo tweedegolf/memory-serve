@@ -3,6 +3,7 @@ use syn::LitByteStr;
 /// Internal data structure
 pub(crate) struct Asset {
     pub(crate) route: String,
+    pub(crate) path: String,
     pub(crate) etag: String,
     pub(crate) content_type: String,
     pub(crate) bytes: LitByteStr,
