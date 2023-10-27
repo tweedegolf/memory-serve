@@ -11,7 +11,7 @@ use crate::asset::Asset;
 pub fn load_assets(input: TokenStream) -> TokenStream {
     let input = input.to_string();
     let input = input.trim_matches('"');
-    let path = Path::new(&input);
+    let asset_path = Path::new(&input);
 
     // skip if a subscriber is already registered (for instance by rust_analyzer)
     let _ = tracing_subscriber::fmt()
@@ -19,13 +19,14 @@ pub fn load_assets(input: TokenStream) -> TokenStream {
         .with_target(false)
         .try_init();
 
-    if !path.exists() {
-        panic!("The path {:?} does not exists!", path);
+    if !asset_path.exists() {
+        panic!("The path {:?} does not exists!", asset_path);
     }
 
-    let files: Vec<Asset> = list_assets(path);
+    let files: Vec<Asset> = list_assets(asset_path);
 
     let route = files.iter().map(|a| &a.route);
+    let path = files.iter().map(|a| &a.path);
     let content_type = files.iter().map(|a| &a.content_type);
     let etag = files.iter().map(|a| &a.etag);
     let bytes = files.iter().map(|a| &a.bytes);
@@ -35,6 +36,7 @@ pub fn load_assets(input: TokenStream) -> TokenStream {
         &[
             #(memory_serve::Asset {
                 route: #route,
+                path: #path,
                 content_type: #content_type,
                 etag: #etag,
                 bytes: #bytes,

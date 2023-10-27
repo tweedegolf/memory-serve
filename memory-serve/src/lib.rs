@@ -269,7 +269,7 @@ impl MemoryServe {
         let options = Box::leak(Box::new(self.options));
 
         for asset in self.assets {
-            let bytes = if asset.bytes.is_empty() {
+            let bytes = if asset.bytes.is_empty() && !asset.brotli_bytes.is_empty() {
                 Box::new(decompress_brotli(asset.brotli_bytes).unwrap_or_default()).leak()
             } else {
                 asset.bytes
@@ -281,7 +281,9 @@ impl MemoryServe {
                 Default::default()
             };
 
-            info!("serving {} {} bytes", asset.route, bytes.len());
+            if !bytes.is_empty() {
+                info!("serving {} {} bytes", asset.route, bytes.len());
+            }
 
             if !asset.brotli_bytes.is_empty() {
                 info!(
@@ -406,16 +408,20 @@ mod tests {
                 "text/html"
             ]
         );
-        assert_eq!(
-            etags,
-            [
-                "e64f4683bf82d854df40b7246666f6f0816666ad8cd886a8e159535896eb03d6",
-                "ec4edeea111c854901385011f403e1259e3f1ba016dcceabb6d566316be3677b",
-                "86a7fdfd19700843e5f7344a63d27e0b729c2554c8572903ceee71f5658d2ecf",
-                "bd9dccc152de48cb7bedc35b9748ceeade492f6f904710f9c5d480bd6299cc7d",
-                "0639dc8aac157b58c74f65bbb026b2fd42bc81d9a0a64141df456fa23c214537"
-            ]
-        );
+        if cfg!(debug_assertions) {
+            assert_eq!(etags, ["", "", "", "", ""]);
+        } else {
+            assert_eq!(
+                etags,
+                [
+                    "e64f4683bf82d854df40b7246666f6f0816666ad8cd886a8e159535896eb03d6",
+                    "ec4edeea111c854901385011f403e1259e3f1ba016dcceabb6d566316be3677b",
+                    "86a7fdfd19700843e5f7344a63d27e0b729c2554c8572903ceee71f5658d2ecf",
+                    "bd9dccc152de48cb7bedc35b9748ceeade492f6f904710f9c5d480bd6299cc7d",
+                    "0639dc8aac157b58c74f65bbb026b2fd42bc81d9a0a64141df456fa23c214537"
+                ]
+            );
+        }
     }
 
     #[tokio::test]

@@ -68,6 +68,11 @@ pub(crate) fn list_assets<P: AsRef<Path>>(path: P) -> Vec<Asset> {
         .into_iter()
         .filter_map(|entry| entry.ok())
         .filter_map(|entry| {
+            let Some(path) = entry.path().to_str() else {
+                warn!("invalid file path {:?}", entry.path());
+                return None;
+            };
+
             let Ok(metadata) = entry.metadata() else {
                 warn!(
                     "skipping file {:?}, could not get file metadata",
@@ -81,6 +86,12 @@ pub(crate) fn list_assets<P: AsRef<Path>>(path: P) -> Vec<Asset> {
                 return None;
             };
 
+            // skip empty
+            if metadata.len() == 0 {
+                warn!("skipping file {:?}: file empty", entry.path());
+                return None;
+            }
+
             let Some(content_type) = path_to_content_type(entry.path()) else {
                 warn!(
                     "skipping file {:?}, could not determine file extension",
@@ -89,14 +100,22 @@ pub(crate) fn list_assets<P: AsRef<Path>>(path: P) -> Vec<Asset> {
                 return None;
             };
 
+            let route = path_to_route(entry.path());
+
+            // do not load assets into the binary in debug / development mode
+            if cfg!(debug_assertions) {
+                return Some(Asset {
+                    route,
+                    path: path.to_owned(),
+                    content_type,
+                    etag: Default::default(),
+                    bytes: literal_bytes(Default::default()),
+                    brotli_bytes: literal_bytes(Default::default()),
+                });
+            }
+
             let Ok(bytes) = std::fs::read(entry.path()) else {
                 warn!("skipping file {:?}: file is not readable", entry.path());
-                return None;
-            };
-
-            // skip empty
-            if bytes.is_empty() {
-                warn!("skipping file {:?}: file empty", entry.path());
                 return None;
             };
 
@@ -109,8 +128,6 @@ pub(crate) fn list_assets<P: AsRef<Path>>(path: P) -> Vec<Asset> {
             } else {
                 Default::default()
             };
-
-            let route = path_to_route(entry.path());
 
             if brotli_bytes.is_empty() {
                 info!("including {:?} {} bytes", route, bytes.len());
@@ -125,6 +142,7 @@ pub(crate) fn list_assets<P: AsRef<Path>>(path: P) -> Vec<Asset> {
 
             Some(Asset {
                 route,
+                path: path.to_owned(),
                 content_type,
                 etag,
                 bytes: literal_bytes(if brotli_bytes.is_empty() {

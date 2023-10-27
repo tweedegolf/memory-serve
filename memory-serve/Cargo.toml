@@ -13,6 +13,7 @@ flate2 = "1.0"
 axum = { version = "0.6", default-features = false }
 memory-serve-macros = { version = "0.2", path = "../memory-serve-macros" }
 tracing = "0.1"
+sha256 = "1.4"
 
 [dev-dependencies]
 tokio = { version = "1.33", features = ["rt", "macros"] }
