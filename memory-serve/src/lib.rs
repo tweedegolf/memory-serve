@@ -69,7 +69,7 @@
 //!
 //! | method                            | Default value           | Description                                           |
 //! |-----------------------------------|-------------------------|-------------------------------------------------------|
-//! | [MemoryServe::index_file]         | `Some("index.html")`    | Which file to serve on the route "/"                  |
+//! | [MemoryServe::index_file]         | `Some("/index.html")`   | Which file to serve on the route "/"                  |
 //! | [MemoryServe::fallback]           | `None`                  | Which file to serve if no routed matched the request  |
 //! | [MemoryServe::fallback_status]    | `StatusCode::NOT_FOUND` | The HTTP status code to routes that did not match     |
 //! | [MemoryServe::enable_gzip]        | `true`                  | Allow to serve gzip encoded files                     |
@@ -156,7 +156,7 @@ struct ServeOptions {
 impl Default for ServeOptions {
     fn default() -> Self {
         Self {
-            index_file: Some("index.html"),
+            index_file: Some("/index.html"),
             fallback: None,
             fallback_status: StatusCode::NOT_FOUND,
             html_cache_control: CacheControl::Short,
@@ -508,7 +508,9 @@ mod tests {
 
     #[tokio::test]
     async fn index_file() {
-        let memory_router = MemoryServe::new(load_assets!("static")).into_router();
+        let memory_router = MemoryServe::new(load_assets!("static"))
+            .index_file(None)
+            .into_router();
 
         let (code, _) = get(memory_router.clone(), "/", "accept", "*").await;
         assert_eq!(code, 404);

@@ -72,7 +72,7 @@ the following configuration methods:
 
 | method               | Default value           | Description                                           |
 |----------------------|-------------------------|-------------------------------------------------------|
-| `index_file`         | `Some("index.html")`    | Which file to serve on the route "/"                  |
+| `index_file`         | `Some("/index.html")`   | Which file to serve on the route "/"                  |
 | `fallback`           | `None`                  | Which file to serve if no routed matched the request  |
 | `fallback_status`    | `StatusCode::NOT_FOUND` | The HTTP status code to routes that did not match     |
 | `enable_gzip`        | `true`                  | Allow to serve gzip encoded files                     |
