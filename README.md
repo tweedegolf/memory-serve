@@ -8,6 +8,9 @@ scripts into the rust binary at compile time and exposes them as an
 [axum](https://github.com/tokio-rs/axum) Router. It automatically adds cache
 headers and handles file compression.
 
+During development (debug builds) files are served dynamically,
+they are read and compressed at request time.
+
 Text-based files like HTML or javascript
 are compressed using [brotli](https://en.wikipedia.org/wiki/Brotli)
 at compile time and decompressed at startup, to minimize the binary size.
