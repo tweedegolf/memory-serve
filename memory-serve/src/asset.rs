@@ -21,6 +21,7 @@ pub const COMPRESS_TYPES: &[&str] = &[
     "application/xml",
     "text/xml",
     "image/svg+xml",
+    "application/wasm",
 ];
 
 const BROTLI_ENCODING: &str = "br";
