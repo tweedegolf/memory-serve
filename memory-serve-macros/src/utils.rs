@@ -16,6 +16,7 @@ const COMPRESS_TYPES: &[&str] = &[
     "application/xml",
     "text/xml",
     "image/svg+xml",
+    "application/wasm",
 ];
 
 fn path_to_route(base: &Path, path: &Path) -> String {
