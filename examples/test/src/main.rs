@@ -16,12 +16,10 @@ async fn main() {
         .route("/hello", get(handler));
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
 
     info!("listening on {}", addr);
-    axum::Server::bind(&addr)
-        .serve(app.into_make_service())
-        .await
-        .unwrap();
+    axum::serve(listener, app).await.unwrap();
 }
 
 async fn handler() -> Html<&'static str> {
