@@ -161,8 +161,8 @@ impl Default for ServeOptions {
             fallback_status: StatusCode::NOT_FOUND,
             html_cache_control: CacheControl::Short,
             cache_control: CacheControl::Medium,
-            enable_brotli: true,
-            enable_gzip: true,
+            enable_brotli: !cfg!(debug_assertions),
+            enable_gzip: !cfg!(debug_assertions),
         }
     }
 }
