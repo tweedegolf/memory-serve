@@ -16,5 +16,5 @@ tracing = "0.1"
 sha256 = "1.4"
 
 [dev-dependencies]
-tokio = { version = "1.33", features = ["rt", "macros"] }
+tokio = { version = "1", features = ["rt", "macros"] }
 tower = "0.4"

@@ -441,7 +441,9 @@ mod tests {
 
     #[tokio::test]
     async fn brotli_compression() {
-        let memory_router = MemoryServe::new(load_assets!("../static")).into_router();
+        let memory_router = MemoryServe::new(load_assets!("../static"))
+            .enable_brotli(true)
+            .into_router();
         let (code, headers) = get(
             memory_router.clone(),
             "/index.html",
@@ -475,7 +477,9 @@ mod tests {
 
     #[tokio::test]
     async fn gzip_compression() {
-        let memory_router = MemoryServe::new(load_assets!("../static")).into_router();
+        let memory_router = MemoryServe::new(load_assets!("../static"))
+            .enable_gzip(true)
+            .into_router();
         let (code, headers) = get(
             memory_router.clone(),
             "/index.html",
