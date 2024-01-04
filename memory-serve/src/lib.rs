@@ -134,8 +134,7 @@ mod util;
 
 use crate::util::{compress_gzip, decompress_brotli};
 
-pub use crate::asset::Asset;
-pub use crate::cache_control::CacheControl;
+pub use crate::{asset::Asset, cache_control::CacheControl};
 
 /// Macro to load a directory of static files into the resulting binary
 /// (possibly compressed) and create a data structure of (meta)data
