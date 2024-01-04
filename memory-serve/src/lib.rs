@@ -287,7 +287,7 @@ impl MemoryServe {
                         "serving {} {} -> {} bytes (compressed)",
                         asset.route,
                         bytes.len(),
-                        asset.brotli_bytes.is_empty()
+                        asset.brotli_bytes.len()
                     );
                 } else {
                     info!("serving {} {} bytes", asset.route, bytes.len());
