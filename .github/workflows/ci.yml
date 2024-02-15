@@ -79,6 +79,15 @@ jobs:
     - uses: tweedegolf/ci-standard/.github/actions/cargo-udeps@main
 
   publish:
+    needs:
+    - format
+    - outdated
+    - deny
+    - build
+    - clippy
+    - test
+    - test-release
+    - udeps
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
