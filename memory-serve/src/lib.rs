@@ -18,6 +18,7 @@ pub use crate::{asset::Asset, cache_control::CacheControl};
 /// (possibly compressed) and create a data structure of (meta)data
 /// as an input for [MemoryServe::new]
 pub use memory_serve_macros::load_assets;
+pub use memory_serve_macros::load_assets_from_out_dir;
 
 #[derive(Debug, Clone, Copy)]
 struct ServeOptions {
