@@ -43,7 +43,7 @@ calling `Router::into_make_service()`.
 
 ## Example
 
-```rust
+```rust,no_run
 use axum::{response::Html, routing::get, Router};
 use memory_serve::{load_assets, MemoryServe};
 use std::net::SocketAddr;
@@ -54,7 +54,7 @@ async fn main() {
         .index_file(Some("/index.html"))
         .into_router();
 
-    // possible other routes an be added at this point, like API routes
+    // possible other routes can be added at this point, like API routes
     let app = Router::new()
         .merge(memory_router);
 
