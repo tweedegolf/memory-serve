@@ -20,9 +20,13 @@ pub fn load_assets(input: TokenStream) -> TokenStream {
         .try_init();
 
     if asset_path.is_relative() {
-        let crate_dir = env::var("CARGO_MANIFEST_DIR")
-            .expect("CARGO_MANIFEST_DIR environment variable not set");
-        asset_path = Path::new(&crate_dir).join(asset_path);
+        if let Ok(root_dir) = env::var("MEMORY_SERVE_ROOT") {
+            asset_path = Path::new(&root_dir).join(asset_path);
+        } else if let Ok(crate_dir) = env::var("CARGO_MANIFEST_DIR") {
+            asset_path = Path::new(&crate_dir).join(asset_path);
+        } else {
+            panic!("Relative path provided but CARGO_MANIFEST_DIR environment variable not set");
+        }
     }
 
     asset_path = asset_path
