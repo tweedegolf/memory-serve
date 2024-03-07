@@ -1,6 +1,5 @@
-name: build and test
+name: test
 on:
-  workflow_dispatch:
   push:
     branches:
       - main
@@ -77,20 +76,3 @@ jobs:
         prefix-key: cargo
         shared-key: udeps
     - uses: tweedegolf/ci-standard/.github/actions/cargo-udeps@main
-
-  publish:
-    needs:
-    - format
-    - outdated
-    - deny
-    - build
-    - clippy
-    - test
-    - test-release
-    - udeps
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    - uses: katyo/publish-crates@v2
-      with:
-        registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
