@@ -250,9 +250,6 @@ mod tests {
         headers.get(name).unwrap().to_str().unwrap()
     }
 
-    #[derive(Clone)]
-    struct AppState {}
-
     #[test]
     fn test_load_assets() {
         let assets: &'static [Asset] = load_assets!("../static");
