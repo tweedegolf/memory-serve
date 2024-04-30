@@ -20,7 +20,7 @@ pub(crate) fn compress_brotli(input: &[u8]) -> Option<Vec<u8>> {
 }
 
 pub(crate) fn compress_gzip(input: &[u8]) -> Option<Vec<u8>> {
-    let mut writer = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+    let mut writer = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::best());
     writer.write_all(input).ok()?;
 
     writer.finish().ok()

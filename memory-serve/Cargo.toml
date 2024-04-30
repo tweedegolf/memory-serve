@@ -8,7 +8,7 @@ publish.workspace = true
 description.workspace = true
 
 [dependencies]
-brotli = "5"
+brotli = "5.0"
 flate2 = "1.0"
 axum = { version = "0.7", default-features = false }
 memory-serve-macros = { version = "0.4", path = "../memory-serve-macros" }
