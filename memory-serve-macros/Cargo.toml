@@ -11,7 +11,7 @@ publish.workspace = true
 proc-macro = true
 
 [dependencies]
-brotli = "5.0"
+brotli = "6.0"
 mime_guess = "2.0"
 proc-macro2 = "1.0"
 sha256 = "1.4"
