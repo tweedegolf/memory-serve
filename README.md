@@ -79,6 +79,7 @@ the following configuration methods:
 | `[MemoryServe::html_cache_control]` | `CacheConrol::Short` | Cache control header to serve on HTML files
 | `[MemoryServe::cache_control]` | `CacheConrol::Medium` | Cache control header to serve on other files
 | `[MemoryServe::add_alias]` | `[]` | Create a route / file alias
+| `[MemoryServe::enable_clean_url]` | `false` | Enable clean URLs
 
 See `Cache control` for the cache control options.
 

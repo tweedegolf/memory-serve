@@ -28,6 +28,7 @@ struct ServeOptions {
     cache_control: CacheControl,
     enable_brotli: bool,
     enable_gzip: bool,
+    enable_clean_url: bool,
 }
 
 impl Default for ServeOptions {
@@ -40,6 +41,7 @@ impl Default for ServeOptions {
             cache_control: CacheControl::Medium,
             enable_brotli: !cfg!(debug_assertions),
             enable_gzip: !cfg!(debug_assertions),
+            enable_clean_url: false,
         }
     }
 }
@@ -109,6 +111,15 @@ impl MemoryServe {
     /// accept brotli compressed files are served brotli compressed files.
     pub fn enable_brotli(mut self, enable_brotli: bool) -> Self {
         self.options.enable_brotli = enable_brotli;
+
+        self
+    }
+
+    /// Whether to enable clean URLs. When set to `true`, the routing path for
+    /// HTML files will not include the extension so that a file located at
+    /// "/about.html" maps to "/about" instead of "/about.html".
+    pub fn enable_clean_url(mut self, enable_clean_url: bool) -> Self {
+        self.options.enable_clean_url = enable_clean_url;
 
         self
     }
@@ -195,7 +206,12 @@ impl MemoryServe {
                 router = router.route("/", get(handler));
             }
 
-            router = router.route(asset.route, get(handler));
+            let path = if options.enable_clean_url && asset.route.ends_with(".html") {
+                &asset.route[..asset.route.len() - 5]
+            } else {
+                asset.route
+            };
+            router = router.route(path, get(handler));
 
             // add all aliases that point to the asset route
             for (from, to) in self.aliases.iter() {
@@ -260,6 +276,7 @@ mod tests {
         assert_eq!(
             routes,
             [
+                "/about.html",
                 "/assets/icon.jpg",
                 "/assets/index.css",
                 "/assets/index.js",
@@ -270,6 +287,7 @@ mod tests {
         assert_eq!(
             content_types,
             [
+                "text/html",
                 "image/jpeg",
                 "text/css",
                 "application/javascript",
@@ -278,11 +296,12 @@ mod tests {
             ]
         );
         if cfg!(debug_assertions) {
-            assert_eq!(etags, ["", "", "", "", ""]);
+            assert_eq!(etags, ["", "", "", "", "", ""]);
         } else {
             assert_eq!(
                 etags,
                 [
+                    "56a0dcb83ec56b6c967966a1c06c7b1392e261069d0844aa4e910ca5c1e8cf58",
                     "e64f4683bf82d854df40b7246666f6f0816666ad8cd886a8e159535896eb03d6",
                     "ec4edeea111c854901385011f403e1259e3f1ba016dcceabb6d566316be3677b",
                     "86a7fdfd19700843e5f7344a63d27e0b729c2554c8572903ceee71f5658d2ecf",
@@ -399,6 +418,19 @@ mod tests {
             .into_router();
 
         let (code, _) = get(memory_router.clone(), "/", "accept", "*").await;
+        assert_eq!(code, 200);
+    }
+
+    #[tokio::test]
+    async fn clean_url() {
+        let memory_router = MemoryServe::new(load_assets!("../static"))
+            .enable_clean_url(true)
+            .into_router();
+
+        let (code, _) = get(memory_router.clone(), "/about.html", "accept", "*").await;
+        assert_eq!(code, 404);
+
+        let (code, _) = get(memory_router.clone(), "/about", "accept", "*").await;
         assert_eq!(code, 200);
     }
 
