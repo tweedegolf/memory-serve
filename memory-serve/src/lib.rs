@@ -290,7 +290,7 @@ mod tests {
                 "text/html",
                 "image/jpeg",
                 "text/css",
-                "application/javascript",
+                "text/javascript",
                 "image/svg+xml",
                 "text/html"
             ]

@@ -11,7 +11,7 @@ const COMPRESS_TYPES: &[&str] = &[
     "text/html",
     "text/css",
     "application/json",
-    "application/javascript",
+    "text/javascript",
     "text/javascript",
     "application/xml",
     "text/xml",

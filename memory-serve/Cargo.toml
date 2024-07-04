@@ -11,7 +11,7 @@ description.workspace = true
 brotli = "6.0"
 flate2 = "1.0"
 axum = { version = "0.7", default-features = false }
-memory-serve-macros = { version = "0.4", path = "../memory-serve-macros" }
+memory-serve-macros = { version = "0.5", path = "../memory-serve-macros" }
 tracing = "0.1"
 sha256 = "1.4"
 
