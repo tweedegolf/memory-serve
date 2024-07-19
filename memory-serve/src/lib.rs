@@ -16,7 +16,7 @@ pub use crate::{asset::Asset, cache_control::CacheControl};
 
 /// Macro to load a directory of static files into the resulting binary
 /// (possibly compressed) and create a data structure of (meta)data
-/// as an input for [MemoryServe::new]
+/// as an input for [`MemoryServe::new`]
 pub use memory_serve_macros::load_assets;
 
 #[derive(Debug, Clone, Copy)]

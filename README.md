@@ -34,12 +34,12 @@ memory-serve is designed to work with [axum](https://github.com/tokio-rs/axum)
 ## Usage
 
 Provide a relative path to the directory containing your static assets
-to the `load_assets!` macro. This macro creates a data structure intended to
-be consumed by `[MemoryServe::new]`. Calling `[MemoryServe::into_router()]` on
+to the [`load_assets!`] macro. This macro creates a data structure intended to
+be consumed by [`MemoryServe::new`]. Calling [`MemoryServe::into_router()`] on
 the resulting instance produces a axum
-[Router](https://docs.rs/axum/latest/axum/routing/struct.Router.html) that
+[`Router`](https://docs.rs/axum/latest/axum/routing/struct.Router.html) that
 can either be merged in another `Router` or used directly in a server by
-calling `Router::into_make_service()`.
+calling [`Router::into_make_service()`](https://docs.rs/axum/latest/axum/routing/struct.Router.html#method.into_make_service).
 
 ## Example
 
@@ -71,17 +71,17 @@ the following configuration methods:
 
 | method                              | Default value           | Description                                          |
 | ----------------------------------- | ----------------------- | ---------------------------------------------------- |
-| `[MemoryServe::index_file]`         | `Some("/index.html")`   | Which file to serve on the route "/"                 |
-| `[MemoryServe::fallback]`           | `None`                  | Which file to serve if no routed matched the request |
-| `[MemoryServe::fallback_status]`    | `StatusCode::NOT_FOUND` | The HTTP status code to routes that did not match    |
-| `[MemoryServe::enable_gzip]`        | `true`                  | Allow to serve gzip encoded files                    |
-| `[MemoryServe::enable_brotli]`      | `true`                  | Allow to serve brotli encoded files                  |
-| `[MemoryServe::html_cache_control]` | `CacheControl::Short`   | Cache control header to serve on HTML files          |
-| `[MemoryServe::cache_control]`      | `CacheControl::Medium`  | Cache control header to serve on other files         |
-| `[MemoryServe::add_alias]`          | `[]`                    | Create a route / file alias                          |
-| `[MemoryServe::enable_clean_url]`   | `false`                 | Enable clean URLs                                    |
+| [`MemoryServe::index_file`]         | `Some("/index.html")`   | Which file to serve on the route "/"                 |
+| [`MemoryServe::fallback`]           | `None`                  | Which file to serve if no routed matched the request |
+| [`MemoryServe::fallback_status`]    | `StatusCode::NOT_FOUND` | The HTTP status code to routes that did not match    |
+| [`MemoryServe::enable_gzip`]        | `true`                  | Allow to serve gzip encoded files                    |
+| [`MemoryServe::enable_brotli`]      | `true`                  | Allow to serve brotli encoded files                  |
+| [`MemoryServe::html_cache_control`] | `CacheControl::Short`   | Cache control header to serve on HTML files          |
+| [`MemoryServe::cache_control`]      | `CacheControl::Medium`  | Cache control header to serve on other files         |
+| [`MemoryServe::add_alias`]          | `[]`                    | Create a route / file alias                          |
+| [`MemoryServe::enable_clean_url`]   | `false`                 | Enable clean URLs                                    |
 
-See `Cache control` for the cache control options.
+See [`Cache control`](#cache-control) for the cache control options.
 
 ## Logging
 
@@ -93,8 +93,8 @@ WARN skipping file "static/empty.txt": file empty
 ```
 
 When running the resulting executable, all registered routes and asset
-sizes are logged using the [tracing](https://github.com/tokio-rs/tracing)
-crate. To print or log them, use `tracing-subscriber`.
+sizes are logged using the [`tracing`](https://docs.rs/tracing/latest/tracing/)
+crate. To print or log them, use [`tracing-subscriber`](https://docs.rs/tracing/latest/tracing_subscriber/).
 Example output:
 
 ```txt
@@ -118,8 +118,8 @@ There are 5 different values to choose from for the cache-control settings:
 
 | Option                    | Description                                                                         | Value                                          |
 | ------------------------- | ----------------------------------------------------------------------------------- | ---------------------------------------------- |
-| `[CacheControl::Long]`    | clients can keep assets that have cache busting for a year                          | `max-age=31536000, immutable`                  |
-| `[CacheControl::Medium]`  | assets without cache busting are revalidated after a day and can be kept for a week | `max-age=604800, stale-while-revalidate=86400` |
-| `[CacheControl::Short]`   | cache kept for max 5 minutes, only at the client (not in a proxy)                   | `max-age:300, private`                         |
-| `[CacheControl::NoCache]` | do not cache if freshness is really vital                                           | `no-cache`                                     |
-| `[CacheControl::Custom]`  | Custom value                                                                        | _user defined_                                 |
+| [`CacheControl::Long`]    | clients can keep assets that have cache busting for a year                          | `max-age=31536000, immutable`                  |
+| [`CacheControl::Medium`]  | assets without cache busting are revalidated after a day and can be kept for a week | `max-age=604800, stale-while-revalidate=86400` |
+| [`CacheControl::Short`]   | cache kept for max 5 minutes, only at the client (not in a proxy)                   | `max-age:300, private`                         |
+| [`CacheControl::NoCache`] | do not cache if freshness is really vital                                           | `no-cache`                                     |
+| [`CacheControl::Custom`]  | Custom value                                                                        | _user defined_                                 |
