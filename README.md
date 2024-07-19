@@ -69,17 +69,17 @@ async fn main() {
 An instance of the `MemoryServe` struct can be configured by calling
 the following configuration methods:
 
-| method | Default value | Description |
-|--------|---------------|-------------|
-| `[MemoryServe::index_file]` | `Some("/index.html")` | Which file to serve on the route "/"
-| `[MemoryServe::fallback]` | `None` | Which file to serve if no routed matched the request
-| `[MemoryServe::fallback_status]` | `StatusCode::NOT_FOUND` | The HTTP status code to routes that did not match
-| `[MemoryServe::enable_gzip]` | `true` | Allow to serve gzip encoded files
-| `[MemoryServe::enable_brotli]` | `true` | Allow to serve brotli encoded files
-| `[MemoryServe::html_cache_control]` | `CacheConrol::Short` | Cache control header to serve on HTML files
-| `[MemoryServe::cache_control]` | `CacheConrol::Medium` | Cache control header to serve on other files
-| `[MemoryServe::add_alias]` | `[]` | Create a route / file alias
-| `[MemoryServe::enable_clean_url]` | `false` | Enable clean URLs
+| method                              | Default value           | Description                                          |
+| ----------------------------------- | ----------------------- | ---------------------------------------------------- |
+| `[MemoryServe::index_file]`         | `Some("/index.html")`   | Which file to serve on the route "/"                 |
+| `[MemoryServe::fallback]`           | `None`                  | Which file to serve if no routed matched the request |
+| `[MemoryServe::fallback_status]`    | `StatusCode::NOT_FOUND` | The HTTP status code to routes that did not match    |
+| `[MemoryServe::enable_gzip]`        | `true`                  | Allow to serve gzip encoded files                    |
+| `[MemoryServe::enable_brotli]`      | `true`                  | Allow to serve brotli encoded files                  |
+| `[MemoryServe::html_cache_control]` | `CacheControl::Short`   | Cache control header to serve on HTML files          |
+| `[MemoryServe::cache_control]`      | `CacheControl::Medium`  | Cache control header to serve on other files         |
+| `[MemoryServe::add_alias]`          | `[]`                    | Create a route / file alias                          |
+| `[MemoryServe::enable_clean_url]`   | `false`                 | Enable clean URLs                                    |
 
 See `Cache control` for the cache control options.
 
@@ -116,10 +116,10 @@ Example output:
 
 There are 5 different values to choose from for the cache-control settings:
 
-| Option | Description | Value |
-|--------|-------------|-------|
-| `[CacheControl::Long]` | clients can keep assets that have cache busting for a year | `max-age=31536000, immutable`
-| `[CacheControl::Medium]` | assets without cache busting are revalidated after a day and can be kept for a week | `max-age=604800, stale-while-revalidate=86400`
-| `[CacheControl::Short]` | cache kept for max 5 minutes, only at the client (not in a proxy) | `max-age:300, private`
-| `[CacheControl::NoCache]` | do not cache if freshness is really vital | `no-cache`
-| `[CacheControl::Custom]` | Custom value | *user defined*
+| Option                    | Description                                                                         | Value                                          |
+| ------------------------- | ----------------------------------------------------------------------------------- | ---------------------------------------------- |
+| `[CacheControl::Long]`    | clients can keep assets that have cache busting for a year                          | `max-age=31536000, immutable`                  |
+| `[CacheControl::Medium]`  | assets without cache busting are revalidated after a day and can be kept for a week | `max-age=604800, stale-while-revalidate=86400` |
+| `[CacheControl::Short]`   | cache kept for max 5 minutes, only at the client (not in a proxy)                   | `max-age:300, private`                         |
+| `[CacheControl::NoCache]` | do not cache if freshness is really vital                                           | `no-cache`                                     |
+| `[CacheControl::Custom]`  | Custom value                                                                        | _user defined_                                 |
