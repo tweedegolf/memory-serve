@@ -69,17 +69,18 @@ async fn main() {
 An instance of the `MemoryServe` struct can be configured by calling
 the following configuration methods:
 
-| method                              | Default value           | Description                                          |
-| ----------------------------------- | ----------------------- | ---------------------------------------------------- |
-| [`MemoryServe::index_file`]         | `Some("/index.html")`   | Which file to serve on the route "/"                 |
-| [`MemoryServe::fallback`]           | `None`                  | Which file to serve if no routed matched the request |
-| [`MemoryServe::fallback_status`]    | `StatusCode::NOT_FOUND` | The HTTP status code to routes that did not match    |
-| [`MemoryServe::enable_gzip`]        | `true`                  | Allow to serve gzip encoded files                    |
-| [`MemoryServe::enable_brotli`]      | `true`                  | Allow to serve brotli encoded files                  |
-| [`MemoryServe::html_cache_control`] | `CacheControl::Short`   | Cache control header to serve on HTML files          |
-| [`MemoryServe::cache_control`]      | `CacheControl::Medium`  | Cache control header to serve on other files         |
-| [`MemoryServe::add_alias`]          | `[]`                    | Create a route / file alias                          |
-| [`MemoryServe::enable_clean_url`]   | `false`                 | Enable clean URLs                                    |
+| method                                   | Default value           | Description                                                |
+| ---------------------------------------- | ----------------------- | ---------------------------------------------------------- |
+| [`MemoryServe::index_file`]              | `Some("/index.html")`   | Which file to serve on the route "/"                       |
+| [`MemoryServe::index_on_subdirectories`] | `false`                 | Whether to serve the corresponding index in subdirectories |
+| [`MemoryServe::fallback`]                | `None`                  | Which file to serve if no routed matched the request       |
+| [`MemoryServe::fallback_status`]         | `StatusCode::NOT_FOUND` | The HTTP status code to routes that did not match          |
+| [`MemoryServe::enable_gzip`]             | `true`                  | Allow to serve gzip encoded files                          |
+| [`MemoryServe::enable_brotli`]           | `true`                  | Allow to serve brotli encoded files                        |
+| [`MemoryServe::html_cache_control`]      | `CacheControl::Short`   | Cache control header to serve on HTML files                |
+| [`MemoryServe::cache_control`]           | `CacheControl::Medium`  | Cache control header to serve on other files               |
+| [`MemoryServe::add_alias`]               | `[]`                    | Create a route / file alias                                |
+| [`MemoryServe::enable_clean_url`]        | `false`                 | Enable clean URLs                                          |
 
 See [`Cache control`](#cache-control) for the cache control options.
 

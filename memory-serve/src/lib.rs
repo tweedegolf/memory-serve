@@ -22,6 +22,7 @@ pub use memory_serve_macros::load_assets;
 #[derive(Debug, Clone, Copy)]
 struct ServeOptions {
     index_file: Option<&'static str>,
+    index_on_subdirectories: bool,
     fallback: Option<&'static str>,
     fallback_status: StatusCode,
     html_cache_control: CacheControl,
@@ -35,6 +36,7 @@ impl Default for ServeOptions {
     fn default() -> Self {
         Self {
             index_file: Some("/index.html"),
+            index_on_subdirectories: false,
             fallback: None,
             fallback_status: StatusCode::NOT_FOUND,
             html_cache_control: CacheControl::Short,
@@ -74,6 +76,14 @@ impl MemoryServe {
     /// By default this is `Some("/index.html")`
     pub fn index_file(mut self, index_file: Option<&'static str>) -> Self {
         self.options.index_file = index_file;
+
+        self
+    }
+
+    /// Whether to serve the corresponding index.html file when a route
+    /// matches a subdirectory
+    pub fn index_on_subdirectories(mut self, enable: bool) -> Self {
+        self.options.index_on_subdirectories = enable;
 
         self
     }
@@ -200,10 +210,17 @@ impl MemoryServe {
                 });
             }
 
-            if Some(asset.route) == options.index_file {
-                info!("serving {} as index on /", asset.route);
+            if let Some(index) = options.index_file {
+                if asset.route == index {
+                    info!("serving {} as index on /", asset.route);
 
-                router = router.route("/", get(handler));
+                    router = router.route("/", get(handler));
+                } else if options.index_on_subdirectories && asset.route.ends_with(index) {
+                    let path = &asset.route[..asset.route.len() - index.len()];
+                    info!("serving {} as index on {}", asset.route, path);
+
+                    router = router.route(path, get(handler));
+                }
             }
 
             let path = if options.enable_clean_url && asset.route.ends_with(".html") {
@@ -281,6 +298,7 @@ mod tests {
                 "/assets/index.css",
                 "/assets/index.js",
                 "/assets/stars.svg",
+                "/blog/index.html",
                 "/index.html"
             ]
         );
@@ -292,11 +310,12 @@ mod tests {
                 "text/css",
                 "text/javascript",
                 "image/svg+xml",
+                "text/html",
                 "text/html"
             ]
         );
         if cfg!(debug_assertions) {
-            assert_eq!(etags, ["", "", "", "", "", ""]);
+            assert_eq!(etags, ["", "", "", "", "", "", ""]);
         } else {
             assert_eq!(
                 etags,
@@ -306,6 +325,7 @@ mod tests {
                     "ec4edeea111c854901385011f403e1259e3f1ba016dcceabb6d566316be3677b",
                     "86a7fdfd19700843e5f7344a63d27e0b729c2554c8572903ceee71f5658d2ecf",
                     "bd9dccc152de48cb7bedc35b9748ceeade492f6f904710f9c5d480bd6299cc7d",
+                    "89e9873a8e49f962fe83ad2bfe6ac9b21ef7c1b4040b99c34eb783dccbadebc5",
                     "0639dc8aac157b58c74f65bbb026b2fd42bc81d9a0a64141df456fa23c214537"
                 ]
             );
@@ -418,6 +438,25 @@ mod tests {
             .into_router();
 
         let (code, _) = get(memory_router.clone(), "/", "accept", "*").await;
+        assert_eq!(code, 200);
+    }
+
+    #[tokio::test]
+    async fn index_file_on_subdirs() {
+        let memory_router = MemoryServe::new(load_assets!("../static"))
+            .index_file(Some("/index.html"))
+            .index_on_subdirectories(false)
+            .into_router();
+
+        let (code, _) = get(memory_router.clone(), "/blog", "accept", "*").await;
+        assert_eq!(code, 404);
+
+        let memory_router = MemoryServe::new(load_assets!("../static"))
+            .index_file(Some("/index.html"))
+            .index_on_subdirectories(true)
+            .into_router();
+
+        let (code, _) = get(memory_router.clone(), "/blog", "accept", "*").await;
         assert_eq!(code, 200);
     }
 
