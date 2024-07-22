@@ -19,18 +19,10 @@ pub enum CacheControl {
 impl CacheControl {
     pub(crate) fn as_header(&self) -> (HeaderName, HeaderValue) {
         let value = match self {
-            Self::Long => {
-                "max-age=31536000, immutable"
-            }
-            Self::Medium => {
-                "max-age=604800, stale-while-revalidate=86400"
-            }
-            Self::Short => {
-                "max-age:300, private"
-            }
-            Self::NoCache => {
-                "no-cache"
-            }
+            Self::Long => "max-age=31536000, immutable",
+            Self::Medium => "max-age=604800, stale-while-revalidate=86400",
+            Self::Short => "max-age:300, private",
+            Self::NoCache => "no-cache",
             Self::Custom(value) => value,
         };
 
