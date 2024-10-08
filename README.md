@@ -84,6 +84,15 @@ the following configuration methods:
 
 See [`Cache control`](#cache-control) for the cache control options.
 
+## Asset path
+
+The `load_assets!` macro accepts relative (from `CARGO_MANIFEST_DIR`) or absolute paths. When the environment variable `MEMORY_SERVE_ROOT`
+is set, the path is constructed relative from the path provided by `MEMORY_SERVE_ROOT`.
+
+## Build cache
+
+
+
 ## Logging
 
 During compilation, problems that occur with the inclusion or compression

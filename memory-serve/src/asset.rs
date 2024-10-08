@@ -5,6 +5,7 @@ use axum::{
     },
     response::{IntoResponse, Response},
 };
+use serde::{Deserialize, Serialize};
 use tracing::{debug, error};
 
 use crate::{
@@ -33,7 +34,7 @@ const GZIP_ENCODING: &str = "gzip";
 const GZIP_HEADER: (HeaderName, HeaderValue) =
     (CONTENT_ENCODING, HeaderValue::from_static(GZIP_ENCODING));
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Asset {
     pub route: &'static str,
     pub path: &'static str,

@@ -1,11 +1,39 @@
 use mime_guess::mime;
-use proc_macro2::Span;
+use serde::Serialize;
 use std::{io::Write, path::Path};
-use syn::LitByteStr;
 use tracing::{info, warn};
 use walkdir::WalkDir;
 
-use crate::Asset;
+/// Internal data structure
+#[derive(Serialize)]
+pub(crate) struct Asset {
+    pub(crate) route: String,
+    pub(crate) path: String,
+    pub(crate) etag: String,
+    pub(crate) content_type: String,
+    pub(crate) bytes: Vec<u8>,
+    pub(crate) brotli_bytes: Vec<u8>,
+}
+
+impl PartialEq for Asset {
+    fn eq(&self, other: &Self) -> bool {
+        self.route == other.route
+    }
+}
+
+impl Eq for Asset {}
+
+impl PartialOrd for Asset {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Asset {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.route.cmp(&other.route)
+    }
+}
 
 const COMPRESS_TYPES: &[&str] = &[
     "text/html",
@@ -52,10 +80,6 @@ fn compress_brotli(input: &[u8]) -> Option<Vec<u8>> {
     writer.write_all(input).ok()?;
 
     Some(writer.into_inner())
-}
-
-fn literal_bytes(bytes: Vec<u8>) -> LitByteStr {
-    LitByteStr::new(&bytes, Span::call_site())
 }
 
 // skip if compressed data is larger than the original
@@ -107,8 +131,8 @@ pub(crate) fn list_assets(base_path: &Path) -> Vec<Asset> {
                     path: path.to_owned(),
                     content_type,
                     etag: Default::default(),
-                    bytes: literal_bytes(Default::default()),
-                    brotli_bytes: literal_bytes(Default::default()),
+                    bytes: Default::default(),
+                    brotli_bytes: Default::default(),
                 });
             }
 
@@ -142,12 +166,12 @@ pub(crate) fn list_assets(base_path: &Path) -> Vec<Asset> {
                 path: path.to_owned(),
                 content_type,
                 etag,
-                bytes: literal_bytes(if brotli_bytes.is_empty() {
+                bytes: if brotli_bytes.is_empty() {
                     bytes
                 } else {
                     Default::default()
-                }),
-                brotli_bytes: literal_bytes(brotli_bytes),
+                },
+                brotli_bytes: brotli_bytes,
             })
         })
         .collect();

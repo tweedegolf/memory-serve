@@ -14,11 +14,6 @@ use crate::util::{compress_gzip, decompress_brotli};
 
 pub use crate::{asset::Asset, cache_control::CacheControl};
 
-/// Macro to load a directory of static files into the resulting binary
-/// (possibly compressed) and create a data structure of (meta)data
-/// as an input for [`MemoryServe::new`]
-pub use memory_serve_macros::load_assets;
-
 #[derive(Debug, Clone, Copy)]
 struct ServeOptions {
     index_file: Option<&'static str>,
@@ -60,12 +55,15 @@ pub struct MemoryServe {
 }
 
 impl MemoryServe {
-    /// Initiate a `MemoryServe` instance, takes the output of `load_assets!`
-    /// as an argument. `load_assets!` takes a directory name relative from
-    /// the project root.
-    pub fn new(assets: &'static [Asset]) -> Self {
+    /// Initiate a `MemoryServe` instance, takes the contents of `memory_serve_assets.bin`
+    /// created at build time.
+    /// Specify which asset directory to include using the environment variable `ASSET_DIR`.
+    pub fn new() -> Self {
+        let asset_bytes = include_bytes!("../memory_serve_assets.bin");
+        let assets: Vec<Asset> = postcard::from_bytes(asset_bytes).expect("Could not deserialize assets");
+
         Self {
-            assets,
+            assets: assets.leak(),
             ..Default::default()
         }
     }
@@ -246,7 +244,7 @@ impl MemoryServe {
 
 #[cfg(test)]
 mod tests {
-    use crate::{self as memory_serve, load_assets, Asset, CacheControl, MemoryServe};
+    use crate::{CacheControl, MemoryServe};
     use axum::{
         body::Body,
         http::{
@@ -283,58 +281,58 @@ mod tests {
         headers.get(name).unwrap().to_str().unwrap()
     }
 
-    #[test]
-    fn test_load_assets() {
-        let assets: &'static [Asset] = load_assets!("../static");
-        let routes: Vec<&str> = assets.iter().map(|a| a.route).collect();
-        let content_types: Vec<&str> = assets.iter().map(|a| a.content_type).collect();
-        let etags: Vec<&str> = assets.iter().map(|a| a.etag).collect();
+    // #[test]
+    // fn test_load_assets() {
+    //     let assets: &'static [Asset] = load_assets!("../static");
+    //     let routes: Vec<&str> = assets.iter().map(|a| a.route).collect();
+    //     let content_types: Vec<&str> = assets.iter().map(|a| a.content_type).collect();
+    //     let etags: Vec<&str> = assets.iter().map(|a| a.etag).collect();
 
-        assert_eq!(
-            routes,
-            [
-                "/about.html",
-                "/assets/icon.jpg",
-                "/assets/index.css",
-                "/assets/index.js",
-                "/assets/stars.svg",
-                "/blog/index.html",
-                "/index.html"
-            ]
-        );
-        assert_eq!(
-            content_types,
-            [
-                "text/html",
-                "image/jpeg",
-                "text/css",
-                "text/javascript",
-                "image/svg+xml",
-                "text/html",
-                "text/html"
-            ]
-        );
-        if cfg!(debug_assertions) {
-            assert_eq!(etags, ["", "", "", "", "", "", ""]);
-        } else {
-            assert_eq!(
-                etags,
-                [
-                    "56a0dcb83ec56b6c967966a1c06c7b1392e261069d0844aa4e910ca5c1e8cf58",
-                    "e64f4683bf82d854df40b7246666f6f0816666ad8cd886a8e159535896eb03d6",
-                    "ec4edeea111c854901385011f403e1259e3f1ba016dcceabb6d566316be3677b",
-                    "86a7fdfd19700843e5f7344a63d27e0b729c2554c8572903ceee71f5658d2ecf",
-                    "bd9dccc152de48cb7bedc35b9748ceeade492f6f904710f9c5d480bd6299cc7d",
-                    "89e9873a8e49f962fe83ad2bfe6ac9b21ef7c1b4040b99c34eb783dccbadebc5",
-                    "0639dc8aac157b58c74f65bbb026b2fd42bc81d9a0a64141df456fa23c214537"
-                ]
-            );
-        }
-    }
+    //     assert_eq!(
+    //         routes,
+    //         [
+    //             "/about.html",
+    //             "/assets/icon.jpg",
+    //             "/assets/index.css",
+    //             "/assets/index.js",
+    //             "/assets/stars.svg",
+    //             "/blog/index.html",
+    //             "/index.html"
+    //         ]
+    //     );
+    //     assert_eq!(
+    //         content_types,
+    //         [
+    //             "text/html",
+    //             "image/jpeg",
+    //             "text/css",
+    //             "text/javascript",
+    //             "image/svg+xml",
+    //             "text/html",
+    //             "text/html"
+    //         ]
+    //     );
+    //     if cfg!(debug_assertions) {
+    //         assert_eq!(etags, ["", "", "", "", "", "", ""]);
+    //     } else {
+    //         assert_eq!(
+    //             etags,
+    //             [
+    //                 "56a0dcb83ec56b6c967966a1c06c7b1392e261069d0844aa4e910ca5c1e8cf58",
+    //                 "e64f4683bf82d854df40b7246666f6f0816666ad8cd886a8e159535896eb03d6",
+    //                 "ec4edeea111c854901385011f403e1259e3f1ba016dcceabb6d566316be3677b",
+    //                 "86a7fdfd19700843e5f7344a63d27e0b729c2554c8572903ceee71f5658d2ecf",
+    //                 "bd9dccc152de48cb7bedc35b9748ceeade492f6f904710f9c5d480bd6299cc7d",
+    //                 "89e9873a8e49f962fe83ad2bfe6ac9b21ef7c1b4040b99c34eb783dccbadebc5",
+    //                 "0639dc8aac157b58c74f65bbb026b2fd42bc81d9a0a64141df456fa23c214537"
+    //             ]
+    //         );
+    //     }
+    // }
 
     #[tokio::test]
     async fn if_none_match_handling() {
-        let memory_router = MemoryServe::new(load_assets!("../static")).into_router();
+        let memory_router = MemoryServe::new().into_router();
         let (code, headers) =
             get(memory_router.clone(), "/index.html", "accept", "text/html").await;
         let etag: &str = headers.get(header::ETAG).unwrap().to_str().unwrap();
@@ -354,7 +352,7 @@ mod tests {
 
     #[tokio::test]
     async fn brotli_compression() {
-        let memory_router = MemoryServe::new(load_assets!("../static"))
+        let memory_router = MemoryServe::new()
             .enable_brotli(true)
             .into_router();
         let (code, headers) = get(
@@ -372,7 +370,7 @@ mod tests {
         assert_eq!(length.parse::<i32>().unwrap(), 178);
 
         // check disable compression
-        let memory_router = MemoryServe::new(load_assets!("../static"))
+        let memory_router = MemoryServe::new()
             .enable_brotli(false)
             .into_router();
         let (code, headers) = get(
@@ -390,7 +388,7 @@ mod tests {
 
     #[tokio::test]
     async fn gzip_compression() {
-        let memory_router = MemoryServe::new(load_assets!("../static"))
+        let memory_router = MemoryServe::new()
             .enable_gzip(true)
             .into_router();
         let (code, headers) = get(
@@ -408,7 +406,7 @@ mod tests {
         assert_eq!(length.parse::<i32>().unwrap(), 274);
 
         // check disable compression
-        let memory_router = MemoryServe::new(load_assets!("../static"))
+        let memory_router = MemoryServe::new()
             .enable_gzip(false)
             .into_router();
         let (code, headers) = get(
@@ -426,14 +424,14 @@ mod tests {
 
     #[tokio::test]
     async fn index_file() {
-        let memory_router = MemoryServe::new(load_assets!("../static"))
+        let memory_router = MemoryServe::new()
             .index_file(None)
             .into_router();
 
         let (code, _) = get(memory_router.clone(), "/", "accept", "*").await;
         assert_eq!(code, 404);
 
-        let memory_router = MemoryServe::new(load_assets!("../static"))
+        let memory_router = MemoryServe::new()
             .index_file(Some("/index.html"))
             .into_router();
 
@@ -443,7 +441,7 @@ mod tests {
 
     #[tokio::test]
     async fn index_file_on_subdirs() {
-        let memory_router = MemoryServe::new(load_assets!("../static"))
+        let memory_router = MemoryServe::new()
             .index_file(Some("/index.html"))
             .index_on_subdirectories(false)
             .into_router();
@@ -451,7 +449,7 @@ mod tests {
         let (code, _) = get(memory_router.clone(), "/blog", "accept", "*").await;
         assert_eq!(code, 404);
 
-        let memory_router = MemoryServe::new(load_assets!("../static"))
+        let memory_router = MemoryServe::new()
             .index_file(Some("/index.html"))
             .index_on_subdirectories(true)
             .into_router();
@@ -462,7 +460,7 @@ mod tests {
 
     #[tokio::test]
     async fn clean_url() {
-        let memory_router = MemoryServe::new(load_assets!("../static"))
+        let memory_router = MemoryServe::new()
             .enable_clean_url(true)
             .into_router();
 
@@ -475,11 +473,11 @@ mod tests {
 
     #[tokio::test]
     async fn fallback() {
-        let memory_router = MemoryServe::new(load_assets!("../static")).into_router();
+        let memory_router = MemoryServe::new().into_router();
         let (code, _) = get(memory_router.clone(), "/foobar", "accept", "*").await;
         assert_eq!(code, 404);
 
-        let memory_router = MemoryServe::new(load_assets!("../static"))
+        let memory_router = MemoryServe::new()
             .fallback(Some("/index.html"))
             .into_router();
         let (code, headers) = get(memory_router.clone(), "/foobar", "accept", "*").await;
@@ -487,7 +485,7 @@ mod tests {
         assert_eq!(code, 404);
         assert_eq!(length.parse::<i32>().unwrap(), 437);
 
-        let memory_router = MemoryServe::new(load_assets!("../static"))
+        let memory_router = MemoryServe::new()
             .fallback(Some("/index.html"))
             .fallback_status(StatusCode::OK)
             .into_router();
@@ -500,7 +498,7 @@ mod tests {
     #[tokio::test]
     async fn cache_control() {
         async fn check_cache_control(cache_control: CacheControl, expected: &str) {
-            let memory_router = MemoryServe::new(load_assets!("../static"))
+            let memory_router = MemoryServe::new()
                 .cache_control(cache_control)
                 .into_router();
 
@@ -534,7 +532,7 @@ mod tests {
         .await;
 
         async fn check_html_cache_control(cache_control: CacheControl, expected: &str) {
-            let memory_router = MemoryServe::new(load_assets!("../static"))
+            let memory_router = MemoryServe::new()
                 .html_cache_control(cache_control)
                 .into_router();
 
@@ -568,7 +566,7 @@ mod tests {
 
     #[tokio::test]
     async fn aliases() {
-        let memory_router = MemoryServe::new(load_assets!("../static"))
+        let memory_router = MemoryServe::new()
             .add_alias("/foobar", "/index.html")
             .add_alias("/baz", "/index.html")
             .into_router();

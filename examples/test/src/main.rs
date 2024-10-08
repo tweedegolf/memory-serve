@@ -1,5 +1,5 @@
 use axum::{response::Html, routing::get, Router};
-use memory_serve::{load_assets, MemoryServe};
+use memory_serve::MemoryServe;
 use std::net::SocketAddr;
 use tracing::info;
 
@@ -7,7 +7,7 @@ use tracing::info;
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    let memory_router = MemoryServe::new(load_assets!("../../static"))
+    let memory_router = MemoryServe::new()
         .index_file(Some("/index.html"))
         .into_router();
 
