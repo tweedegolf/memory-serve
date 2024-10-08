@@ -5,7 +5,6 @@ use axum::{
     },
     response::{IntoResponse, Response},
 };
-use serde::{Deserialize, Serialize};
 use tracing::{debug, error};
 
 use crate::{
@@ -34,14 +33,14 @@ const GZIP_ENCODING: &str = "gzip";
 const GZIP_HEADER: (HeaderName, HeaderValue) =
     (CONTENT_ENCODING, HeaderValue::from_static(GZIP_ENCODING));
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug)]
 pub struct Asset {
     pub route: &'static str,
     pub path: &'static str,
     pub etag: &'static str,
     pub content_type: &'static str,
     pub bytes: &'static [u8],
-    pub brotli_bytes: &'static [u8],
+    pub is_compressed: bool,
 }
 
 struct AssetResponse<'t, B> {
@@ -182,6 +181,7 @@ impl Asset {
         headers: &HeaderMap,
         status: StatusCode,
         bytes: &'static [u8],
+        brotli_bytes: &'static [u8],
         gzip_bytes: &'static [u8],
         options: &ServeOptions,
     ) -> Response {
@@ -199,8 +199,8 @@ impl Asset {
             etag: self.etag,
             bytes_len: bytes.len(),
             bytes,
-            brotli_bytes_len: self.brotli_bytes.len(),
-            brotli_bytes: self.brotli_bytes,
+            brotli_bytes_len: brotli_bytes.len(),
+            brotli_bytes,
             gzip_bytes_len: gzip_bytes.len(),
             gzip_bytes,
         }

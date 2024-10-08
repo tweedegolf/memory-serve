@@ -34,7 +34,7 @@ memory-serve is designed to work with [axum](https://github.com/tokio-rs/axum)
 ## Usage
 
 Provide a relative path to the directory containing your static assets
-to the [`load_assets!`] macro. This macro creates a data structure intended to
+usinf the `ASSET_PATH` environment variable. This macro creates a data structure intended to
 be consumed by [`MemoryServe::new`]. Calling [`MemoryServe::into_router()`] on
 the resulting instance produces a axum
 [`Router`](https://docs.rs/axum/latest/axum/routing/struct.Router.html) that
@@ -45,12 +45,12 @@ calling [`Router::into_make_service()`](https://docs.rs/axum/latest/axum/routing
 
 ```rust,no_run
 use axum::{response::Html, routing::get, Router};
-use memory_serve::{load_assets, MemoryServe};
+use memory_serve::MemoryServe;
 use std::net::SocketAddr;
 
 #[tokio::main]
 async fn main() {
-    let memory_router = MemoryServe::new(load_assets!("static"))
+    let memory_router = MemoryServe::new()
         .index_file(Some("/index.html"))
         .into_router();
 
@@ -83,15 +83,6 @@ the following configuration methods:
 | [`MemoryServe::enable_clean_url`]        | `false`                 | Enable clean URLs                                          |
 
 See [`Cache control`](#cache-control) for the cache control options.
-
-## Asset path
-
-The `load_assets!` macro accepts relative (from `CARGO_MANIFEST_DIR`) or absolute paths. When the environment variable `MEMORY_SERVE_ROOT`
-is set, the path is constructed relative from the path provided by `MEMORY_SERVE_ROOT`.
-
-## Build cache
-
-
 
 ## Logging
 

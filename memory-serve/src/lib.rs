@@ -45,8 +45,6 @@ impl Default for ServeOptions {
 
 /// Helper struct to create and configure an axum to serve static files from
 /// memory.
-/// Initiate an instance with the `MemoryServe::new` method and pass a call
-/// to  the `load_assets!` macro as the single argument.
 #[derive(Debug, Default)]
 pub struct MemoryServe {
     options: ServeOptions,
@@ -59,18 +57,17 @@ impl MemoryServe {
     /// created at build time.
     /// Specify which asset directory to include using the environment variable `ASSET_DIR`.
     pub fn new() -> Self {
-        let asset_bytes = include_bytes!("../memory_serve_assets.bin");
-        let assets: Vec<Asset> = postcard::from_bytes(asset_bytes).expect("Could not deserialize assets");
+        let assets: &[Asset] = include!(concat!(env!("OUT_DIR"), "/memory_serve_assets.rs"));
 
         Self {
-            assets: assets.leak(),
+            assets,
             ..Default::default()
         }
     }
 
     /// Which static file to serve on the route "/" (the index)
-    /// The path (or route) should be relative to the directory passed to
-    /// the `load_assets!` macro, but prepended with a slash.
+    /// The path (or route) should be relative to the directory set with
+    /// the `ASSET_DIR` variable, but prepended with a slash.
     /// By default this is `Some("/index.html")`
     pub fn index_file(mut self, index_file: Option<&'static str>) -> Self {
         self.options.index_file = index_file;
@@ -88,8 +85,8 @@ impl MemoryServe {
 
     /// Which static file to serve when no other routes are matched, also see
     /// [fallback](https://docs.rs/axum/latest/axum/routing/struct.Router.html#method.fallback)
-    /// The path (or route) should be relative to the directory passed to
-    /// the `load_assets!` macro, but prepended with a slash.
+    /// The path (or route) should be relative to the directory set with
+    /// the `ASSET_DIR` variable, but prepended with a slash.
     /// By default this is `None`, which means axum will return an empty
     /// response with a HTTP 404 status code when no route matches.
     pub fn fallback(mut self, fallback: Option<&'static str>) -> Self {
@@ -165,25 +162,31 @@ impl MemoryServe {
         let options = Box::leak(Box::new(self.options));
 
         for asset in self.assets {
-            let bytes = if asset.bytes.is_empty() && !asset.brotli_bytes.is_empty() {
-                Box::new(decompress_brotli(asset.brotli_bytes).unwrap_or_default()).leak()
+            let bytes = if asset.is_compressed {
+                Box::new(decompress_brotli(asset.bytes).unwrap_or_default()).leak()
             } else {
                 asset.bytes
             };
 
-            let gzip_bytes = if !asset.brotli_bytes.is_empty() && options.enable_gzip {
+            let gzip_bytes = if asset.is_compressed && options.enable_gzip {
                 Box::new(compress_gzip(bytes).unwrap_or_default()).leak()
             } else {
                 Default::default()
             };
 
+            let brotli_bytes = if asset.is_compressed {
+                asset.bytes
+            } else {
+                Default::default()
+            };
+
             if !bytes.is_empty() {
-                if !asset.brotli_bytes.is_empty() {
+                if !asset.is_compressed {
                     info!(
                         "serving {} {} -> {} bytes (compressed)",
                         asset.route,
                         bytes.len(),
-                        asset.brotli_bytes.len()
+                        brotli_bytes.len()
                     );
                 } else {
                     info!("serving {} {} bytes", asset.route, bytes.len());
@@ -191,7 +194,14 @@ impl MemoryServe {
             }
 
             let handler = |headers: HeaderMap| {
-                ready(asset.handler(&headers, StatusCode::OK, bytes, gzip_bytes, options))
+                ready(asset.handler(
+                    &headers,
+                    StatusCode::OK,
+                    bytes,
+                    brotli_bytes,
+                    gzip_bytes,
+                    options,
+                ))
             };
 
             if Some(asset.route) == options.fallback {
@@ -202,6 +212,7 @@ impl MemoryServe {
                         &headers,
                         options.fallback_status,
                         bytes,
+                        brotli_bytes,
                         gzip_bytes,
                         options,
                     ))
@@ -244,7 +255,7 @@ impl MemoryServe {
 
 #[cfg(test)]
 mod tests {
-    use crate::{CacheControl, MemoryServe};
+    use crate::{Asset, CacheControl, MemoryServe};
     use axum::{
         body::Body,
         http::{
@@ -281,54 +292,54 @@ mod tests {
         headers.get(name).unwrap().to_str().unwrap()
     }
 
-    // #[test]
-    // fn test_load_assets() {
-    //     let assets: &'static [Asset] = load_assets!("../static");
-    //     let routes: Vec<&str> = assets.iter().map(|a| a.route).collect();
-    //     let content_types: Vec<&str> = assets.iter().map(|a| a.content_type).collect();
-    //     let etags: Vec<&str> = assets.iter().map(|a| a.etag).collect();
+    #[test]
+    fn test_load_assets() {
+        let assets: &[Asset] = include!(concat!(env!("OUT_DIR"), "/memory_serve_assets.rs"));
+        let routes: Vec<&str> = assets.iter().map(|a| a.route).collect();
+        let content_types: Vec<&str> = assets.iter().map(|a| a.content_type).collect();
+        let etags: Vec<&str> = assets.iter().map(|a| a.etag).collect();
 
-    //     assert_eq!(
-    //         routes,
-    //         [
-    //             "/about.html",
-    //             "/assets/icon.jpg",
-    //             "/assets/index.css",
-    //             "/assets/index.js",
-    //             "/assets/stars.svg",
-    //             "/blog/index.html",
-    //             "/index.html"
-    //         ]
-    //     );
-    //     assert_eq!(
-    //         content_types,
-    //         [
-    //             "text/html",
-    //             "image/jpeg",
-    //             "text/css",
-    //             "text/javascript",
-    //             "image/svg+xml",
-    //             "text/html",
-    //             "text/html"
-    //         ]
-    //     );
-    //     if cfg!(debug_assertions) {
-    //         assert_eq!(etags, ["", "", "", "", "", "", ""]);
-    //     } else {
-    //         assert_eq!(
-    //             etags,
-    //             [
-    //                 "56a0dcb83ec56b6c967966a1c06c7b1392e261069d0844aa4e910ca5c1e8cf58",
-    //                 "e64f4683bf82d854df40b7246666f6f0816666ad8cd886a8e159535896eb03d6",
-    //                 "ec4edeea111c854901385011f403e1259e3f1ba016dcceabb6d566316be3677b",
-    //                 "86a7fdfd19700843e5f7344a63d27e0b729c2554c8572903ceee71f5658d2ecf",
-    //                 "bd9dccc152de48cb7bedc35b9748ceeade492f6f904710f9c5d480bd6299cc7d",
-    //                 "89e9873a8e49f962fe83ad2bfe6ac9b21ef7c1b4040b99c34eb783dccbadebc5",
-    //                 "0639dc8aac157b58c74f65bbb026b2fd42bc81d9a0a64141df456fa23c214537"
-    //             ]
-    //         );
-    //     }
-    // }
+        assert_eq!(
+            routes,
+            [
+                "/about.html",
+                "/assets/icon.jpg",
+                "/assets/index.css",
+                "/assets/index.js",
+                "/assets/stars.svg",
+                "/blog/index.html",
+                "/index.html"
+            ]
+        );
+        assert_eq!(
+            content_types,
+            [
+                "text/html",
+                "image/jpeg",
+                "text/css",
+                "text/javascript",
+                "image/svg+xml",
+                "text/html",
+                "text/html"
+            ]
+        );
+        if cfg!(debug_assertions) {
+            assert_eq!(etags, ["", "", "", "", "", "", ""]);
+        } else {
+            assert_eq!(
+                etags,
+                [
+                    "56a0dcb83ec56b6c967966a1c06c7b1392e261069d0844aa4e910ca5c1e8cf58",
+                    "e64f4683bf82d854df40b7246666f6f0816666ad8cd886a8e159535896eb03d6",
+                    "ec4edeea111c854901385011f403e1259e3f1ba016dcceabb6d566316be3677b",
+                    "86a7fdfd19700843e5f7344a63d27e0b729c2554c8572903ceee71f5658d2ecf",
+                    "bd9dccc152de48cb7bedc35b9748ceeade492f6f904710f9c5d480bd6299cc7d",
+                    "89e9873a8e49f962fe83ad2bfe6ac9b21ef7c1b4040b99c34eb783dccbadebc5",
+                    "0639dc8aac157b58c74f65bbb026b2fd42bc81d9a0a64141df456fa23c214537"
+                ]
+            );
+        }
+    }
 
     #[tokio::test]
     async fn if_none_match_handling() {
@@ -352,9 +363,7 @@ mod tests {
 
     #[tokio::test]
     async fn brotli_compression() {
-        let memory_router = MemoryServe::new()
-            .enable_brotli(true)
-            .into_router();
+        let memory_router = MemoryServe::new().enable_brotli(true).into_router();
         let (code, headers) = get(
             memory_router.clone(),
             "/index.html",
@@ -370,9 +379,7 @@ mod tests {
         assert_eq!(length.parse::<i32>().unwrap(), 178);
 
         // check disable compression
-        let memory_router = MemoryServe::new()
-            .enable_brotli(false)
-            .into_router();
+        let memory_router = MemoryServe::new().enable_brotli(false).into_router();
         let (code, headers) = get(
             memory_router.clone(),
             "/index.html",
@@ -388,9 +395,7 @@ mod tests {
 
     #[tokio::test]
     async fn gzip_compression() {
-        let memory_router = MemoryServe::new()
-            .enable_gzip(true)
-            .into_router();
+        let memory_router = MemoryServe::new().enable_gzip(true).into_router();
         let (code, headers) = get(
             memory_router.clone(),
             "/index.html",
@@ -406,9 +411,7 @@ mod tests {
         assert_eq!(length.parse::<i32>().unwrap(), 274);
 
         // check disable compression
-        let memory_router = MemoryServe::new()
-            .enable_gzip(false)
-            .into_router();
+        let memory_router = MemoryServe::new().enable_gzip(false).into_router();
         let (code, headers) = get(
             memory_router.clone(),
             "/index.html",
@@ -424,9 +427,7 @@ mod tests {
 
     #[tokio::test]
     async fn index_file() {
-        let memory_router = MemoryServe::new()
-            .index_file(None)
-            .into_router();
+        let memory_router = MemoryServe::new().index_file(None).into_router();
 
         let (code, _) = get(memory_router.clone(), "/", "accept", "*").await;
         assert_eq!(code, 404);
@@ -460,9 +461,7 @@ mod tests {
 
     #[tokio::test]
     async fn clean_url() {
-        let memory_router = MemoryServe::new()
-            .enable_clean_url(true)
-            .into_router();
+        let memory_router = MemoryServe::new().enable_clean_url(true).into_router();
 
         let (code, _) = get(memory_router.clone(), "/about.html", "accept", "*").await;
         assert_eq!(code, 404);

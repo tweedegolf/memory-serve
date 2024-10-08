@@ -13,8 +13,7 @@ flate2 = "1.0"
 axum = { version = "0.7", default-features = false }
 tracing = "0.1"
 sha256 = "1.4"
-postcard = { version = "1.0", features = ["use-std"] }
-serde = "1.0"
+tower = "0.4"
 
 [build-dependencies]
 sha256 = "1.4"
@@ -23,10 +22,9 @@ tracing = "0.1"
 mime_guess = "2.0"
 walkdir = "2"
 tracing-subscriber = { version = "0.3", features = ["fmt", "ansi"], default-features = false }
-postcard = { version = "1.0", features = ["use-std"] }
-serde = "1.0"
+quote = { version = "1.0", default-features = false }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["full"] }
-tower = "0.4"
+tower = { version = "0.4", features = ["util"] }
 axum = { version = "0.7" }
