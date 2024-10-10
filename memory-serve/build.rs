@@ -1,16 +1,23 @@
 use mime_guess::mime;
-use std::{io::Write, path::Path};
-use tracing::{info, warn};
+use std::{
+    io::Write,
+    path::{Path, PathBuf},
+};
 use walkdir::WalkDir;
+
+macro_rules! log {
+    ($($tokens: tt)*) => {
+        println!("cargo:warning={}", format!($($tokens)*))
+    }
+}
 
 /// Internal data structure
 pub struct Asset {
     pub route: String,
-    pub path: String,
+    pub path: PathBuf,
     pub etag: String,
     pub content_type: String,
-    pub bytes: Vec<u8>,
-    pub is_compressed: bool,
+    pub compressed_bytes: Option<Vec<u8>>,
 }
 
 impl PartialEq for Asset {
@@ -80,29 +87,16 @@ fn compress_brotli(input: &[u8]) -> Option<Vec<u8>> {
     Some(writer.into_inner())
 }
 
-// skip if compressed data is larger than the original
-fn skip_larger(compressed: Vec<u8>, original: &[u8]) -> Vec<u8> {
-    if compressed.len() >= original.len() {
-        Default::default()
-    } else {
-        compressed
-    }
-}
-
 pub fn list_assets(base_path: &Path) -> Vec<Asset> {
     let mut assets: Vec<Asset> = WalkDir::new(base_path)
         .into_iter()
         .filter_map(|entry| entry.ok())
         .filter_map(|entry| {
-            let Some(path) = entry.path().to_str() else {
-                warn!("invalid file path {:?}", entry.path());
-                return None;
-            };
-
+            let path = entry.path().to_owned();
             let route = path_to_route(base_path, entry.path());
 
             let Ok(metadata) = entry.metadata() else {
-                warn!("skipping file {route}, could not get file metadata");
+                log!("skipping file {route}, could not get file metadata");
                 return None;
             };
 
@@ -113,62 +107,72 @@ pub fn list_assets(base_path: &Path) -> Vec<Asset> {
 
             // skip empty
             if metadata.len() == 0 {
-                warn!("skipping file {route}: file empty");
+                log!("skipping file {route}: file empty");
                 return None;
             }
 
             let Some(content_type) = path_to_content_type(entry.path()) else {
-                warn!("skipping file {route}, could not determine file extension");
+                log!("skipping file {route}, could not determine file extension");
                 return None;
             };
 
             // do not load assets into the binary in debug / development mode
             if cfg!(debug_assertions) {
+                log!("including {route} (dynamically)");
+
                 return Some(Asset {
                     route,
                     path: path.to_owned(),
                     content_type,
                     etag: Default::default(),
-                    bytes: Default::default(),
-                    is_compressed: false,
+                    compressed_bytes: None,
                 });
             }
 
             let Ok(bytes) = std::fs::read(entry.path()) else {
-                warn!("skipping file {route}: file is not readable");
+                log!("skipping file {route}: file is not readable");
                 return None;
             };
 
-            let etag = sha256::digest(&bytes);
+            let etag: String = sha256::digest(&bytes);
             let original_size = bytes.len();
-
-            let (bytes, is_compressed) = if COMPRESS_TYPES.contains(&content_type.as_str()) {
-                let brotli_bytes = compress_brotli(&bytes)
-                    .map(|v| skip_larger(v, &bytes))
-                    .unwrap_or_default();
-
-                (brotli_bytes, true)
+            let is_compress_type = COMPRESS_TYPES.contains(&content_type.as_str());
+            let brotli_bytes = if is_compress_type {
+                compress_brotli(&bytes)
             } else {
-                (bytes, false)
+                None
             };
 
-            if is_compressed {
-                info!(
-                    "including {route} {original_size} -> {} bytes (compressed)",
-                    bytes.len()
-                );
-            } else {
-                info!("including {route} {} bytes", bytes.len());
-            };
-
-            Some(Asset {
-                route,
+            let mut asset = Asset {
+                route: route.clone(),
                 path: path.to_owned(),
                 content_type,
                 etag,
-                bytes,
-                is_compressed,
-            })
+                compressed_bytes: None,
+            };
+
+            if is_compress_type {
+                match brotli_bytes {
+                    Some(brotli_bytes) if brotli_bytes.len() >= original_size => {
+                        log!("including {route} {original_size} bytes (compression unnecessary)");
+                    }
+                    Some(brotli_bytes) => {
+                        log!(
+                            "including {route} {original_size} -> {} bytes (compressed)",
+                            brotli_bytes.len()
+                        );
+
+                        asset.compressed_bytes = Some(brotli_bytes);
+                    }
+                    None => {
+                        log!("including {route} {original_size} bytes (compression failed)");
+                    }
+                }
+            } else {
+                log!("including {route} {original_size} bytes");
+            }
+
+            Some(asset)
         })
         .collect();
 
@@ -180,56 +184,73 @@ pub fn list_assets(base_path: &Path) -> Vec<Asset> {
 const ASSET_FILE: &str = "memory_serve_assets.rs";
 
 fn main() {
-    let out_dir: String = std::env::var("OUT_DIR").unwrap();
-    let pkg_name: String = std::env::var("CARGO_PKG_NAME").unwrap();
+    let out_dir: String = std::env::var("OUT_DIR").expect("OUT_DIR environment variable not set.");
+    let target = Path::new(&out_dir).join(ASSET_FILE);
 
-    let memory_serve_dir = match std::env::var("ASSET_DIR") {
-        Ok(dir) => dir,
-        Err(_) if pkg_name == "memory-serve" => "../static".to_string(),
-        Err(_) => {
-            panic!("Please specify the ASSET_DIR environment variable.");
-        }
+    let Ok(asset_dir) = std::env::var("ASSET_DIR") else {
+        log!("Please specify the `ASSET_DIR` environment variable.");
+
+        std::fs::write(target, "&[]").expect("Unable to write memory-serve asset file.");
+
+        println!("cargo::rerun-if-env-changed=ASSET_DIR");
+        return;
     };
 
-    let path = Path::new(&memory_serve_dir);
+    let path = Path::new(&asset_dir);
     let path = path
         .canonicalize()
         .expect("Unable to canonicalize the path specified by ASSET_DIR.");
 
     if !path.exists() {
-        panic!("The path {memory_serve_dir} specified by ASSET_DIR does not exists!");
+        panic!("The path {asset_dir} specified by ASSET_DIR does not exists!");
     }
 
-    let target = Path::new(&out_dir).join(ASSET_FILE);
+    log!("Loading static assets from {asset_dir}...");
     let assets = list_assets(&path);
 
-    let route = assets.iter().map(|a| &a.route);
-    let path = assets.iter().map(|a| &a.path);
-    let content_type = assets.iter().map(|a| &a.content_type);
-    let etag = assets.iter().map(|a| &a.etag);
-    let is_compressed = assets.iter().map(|a| &a.is_compressed);
-    let bytes = assets.iter().map(|a| {
-        let file_name = Path::new(&a.path).file_name().unwrap().to_str().unwrap();
-        let target = Path::new(&out_dir).join(file_name);
-        std::fs::write(&target, &a.bytes).expect("Unable to write file to out dir.");
+    // using a string is faster than using quote ;)
+    let mut code = "&[".to_string();
 
-        target.to_str().unwrap().to_string()
-    });
+    for asset in assets {
+        let Asset {
+            route,
+            path,
+            etag,
+            content_type,
+            compressed_bytes,
+        } = asset;
 
-    let code = quote::quote! {
-        &[
-            #(Asset {
-                route: #route,
-                path: #path,
-                content_type: #content_type,
-                etag: #etag,
-                bytes: include_bytes!(#bytes),
-                is_compressed: #is_compressed,
-            }),*
-        ]
-    };
+        let bytes = if cfg!(debug_assertions) {
+            "None".to_string()
+        } else if let Some(compressed_bytes) = &compressed_bytes {
+            let file_name = path.file_name().expect("Unable to get file name.");
+            let file_path = Path::new(&out_dir).join(file_name);
+            std::fs::write(&file_path, compressed_bytes).expect("Unable to write file to out dir.");
 
-    std::fs::write(target, code.to_string()).expect("Unable to write memory-serve asset file.");
+            format!("Some(include_bytes!(\"{}\"))", file_path.to_string_lossy())
+        } else {
+            format!("Some(include_bytes!(\"{}\"))", path.to_string_lossy())
+        };
 
-    println!("cargo::rerun-if-changed={memory_serve_dir}");
+        let is_compressed = compressed_bytes.is_some();
+
+        code.push_str(&format!(
+            "
+            Asset {{
+                route: \"{route}\",
+                path: {path:?},
+                content_type: \"{content_type}\",
+                etag: \"{etag}\",
+                bytes: {bytes},
+                is_compressed: {is_compressed},
+            }},"
+        ));
+    }
+
+    code.push(']');
+
+    std::fs::write(target, code).expect("Unable to write memory-serve asset file.");
+
+    println!("cargo::rerun-if-changed={asset_dir}");
+    println!("cargo::rerun-if-env-changed=ASSET_DIR");
 }

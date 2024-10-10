@@ -18,11 +18,8 @@ tower = "0.4"
 [build-dependencies]
 sha256 = "1.4"
 brotli = "6.0"
-tracing = "0.1"
 mime_guess = "2.0"
 walkdir = "2"
-tracing-subscriber = { version = "0.3", features = ["fmt", "ansi"], default-features = false }
-quote = { version = "1.0", default-features = false }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["full"] }

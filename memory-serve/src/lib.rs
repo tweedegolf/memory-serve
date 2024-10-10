@@ -5,7 +5,6 @@ use axum::{
 };
 use std::future::ready;
 use tracing::info;
-
 mod asset;
 mod cache_control;
 mod util;
@@ -162,11 +161,11 @@ impl MemoryServe {
         let options = Box::leak(Box::new(self.options));
 
         for asset in self.assets {
-            let bytes = if asset.is_compressed {
-                Box::new(decompress_brotli(asset.bytes).unwrap_or_default()).leak()
-            } else {
-                asset.bytes
-            };
+            let mut bytes = asset.bytes.unwrap_or_default();
+
+            if asset.is_compressed {
+                bytes = Box::new(decompress_brotli(bytes).unwrap_or_default()).leak()
+            }
 
             let gzip_bytes = if asset.is_compressed && options.enable_gzip {
                 Box::new(compress_gzip(bytes).unwrap_or_default()).leak()
@@ -175,13 +174,13 @@ impl MemoryServe {
             };
 
             let brotli_bytes = if asset.is_compressed {
-                asset.bytes
+                asset.bytes.unwrap_or_default()
             } else {
                 Default::default()
             };
 
             if !bytes.is_empty() {
-                if !asset.is_compressed {
+                if asset.is_compressed {
                     info!(
                         "serving {} {} -> {} bytes (compressed)",
                         asset.route,
@@ -191,6 +190,8 @@ impl MemoryServe {
                 } else {
                     info!("serving {} {} bytes", asset.route, bytes.len());
                 }
+            } else {
+                info!("serving {} (dynamically)", asset.route);
             }
 
             let handler = |headers: HeaderMap| {
@@ -403,6 +404,7 @@ mod tests {
             "gzip",
         )
         .await;
+
         let encoding = get_header(&headers, &CONTENT_ENCODING);
         let length = get_header(&headers, &CONTENT_LENGTH);
 
