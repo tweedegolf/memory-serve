@@ -187,6 +187,11 @@ fn main() {
     let out_dir: String = std::env::var("OUT_DIR").expect("OUT_DIR environment variable not set.");
     let target = Path::new(&out_dir).join(ASSET_FILE);
 
+    // prin tenvironment variables
+    for (key, value) in std::env::vars() {
+        log!("{}: {}", key, value);
+    }
+
     let Ok(asset_dir) = std::env::var("ASSET_DIR") else {
         log!("Please specify the `ASSET_DIR` environment variable.");
 
