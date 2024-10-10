@@ -187,11 +187,6 @@ fn main() {
     let out_dir: String = std::env::var("OUT_DIR").expect("OUT_DIR environment variable not set.");
     let target = Path::new(&out_dir).join(ASSET_FILE);
 
-    // prin tenvironment variables
-    for (key, value) in std::env::vars() {
-        log!("{}: {}", key, value);
-    }
-
     let Ok(asset_dir) = std::env::var("ASSET_DIR") else {
         log!("Please specify the `ASSET_DIR` environment variable.");
 
@@ -202,6 +197,23 @@ fn main() {
     };
 
     let path = Path::new(&asset_dir);
+
+    let path = if path.is_relative() {
+        // assume the out dit is in the target directory
+        let crate_root = target
+            .parent() // memory-serve
+            .and_then(|p| p.parent()) // build
+            .and_then(|p| p.parent()) // debug/release
+            .and_then(|p| p.parent()) // target
+            .and_then(|p| p.parent()) // crate root
+            .expect("Unable to get crate root directory.");
+
+        crate_root.join(path)
+    } else {
+        path.to_path_buf()
+    };
+
+
     let path = path
         .canonicalize()
         .expect("Unable to canonicalize the path specified by ASSET_DIR.");
