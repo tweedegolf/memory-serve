@@ -1,5 +1,5 @@
 [workspace]
-members = ["memory-serve", "memory-serve-macros", "examples/test"]
+members = ["memory-serve", "examples/test"]
 resolver = "2"
 
 [workspace.package]

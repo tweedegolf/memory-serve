@@ -34,7 +34,7 @@ memory-serve is designed to work with [axum](https://github.com/tokio-rs/axum)
 ## Usage
 
 Provide a relative path to the directory containing your static assets
-to the [`load_assets!`] macro. This macro creates a data structure intended to
+using the `ASSET_PATH` environment variable. This macro creates a data structure intended to
 be consumed by [`MemoryServe::new`]. Calling [`MemoryServe::into_router()`] on
 the resulting instance produces a axum
 [`Router`](https://docs.rs/axum/latest/axum/routing/struct.Router.html) that
@@ -45,12 +45,12 @@ calling [`Router::into_make_service()`](https://docs.rs/axum/latest/axum/routing
 
 ```rust,no_run
 use axum::{response::Html, routing::get, Router};
-use memory_serve::{load_assets, MemoryServe};
+use memory_serve::MemoryServe;
 use std::net::SocketAddr;
 
 #[tokio::main]
 async fn main() {
-    let memory_router = MemoryServe::new(load_assets!("static"))
+    let memory_router = MemoryServe::new()
         .index_file(Some("/index.html"))
         .into_router();
 

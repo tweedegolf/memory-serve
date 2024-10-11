@@ -5,7 +5,7 @@ use axum::{
     },
     response::{IntoResponse, Response},
 };
-use tracing::{debug, error};
+use tracing::debug;
 
 use crate::{
     util::{compress_brotli, compress_gzip, content_length, supports_encoding},
@@ -39,8 +39,8 @@ pub struct Asset {
     pub path: &'static str,
     pub etag: &'static str,
     pub content_type: &'static str,
-    pub bytes: &'static [u8],
-    pub brotli_bytes: &'static [u8],
+    pub bytes: Option<&'static [u8]>,
+    pub is_compressed: bool,
 }
 
 struct AssetResponse<'t, B> {
@@ -142,7 +142,6 @@ impl Asset {
         options: &ServeOptions,
     ) -> Response {
         let Ok(bytes) = std::fs::read(self.path) else {
-            error!("File not found {}", self.path);
             return StatusCode::NOT_FOUND.into_response();
         };
 
@@ -181,6 +180,7 @@ impl Asset {
         headers: &HeaderMap,
         status: StatusCode,
         bytes: &'static [u8],
+        brotli_bytes: &'static [u8],
         gzip_bytes: &'static [u8],
         options: &ServeOptions,
     ) -> Response {
@@ -198,8 +198,8 @@ impl Asset {
             etag: self.etag,
             bytes_len: bytes.len(),
             bytes,
-            brotli_bytes_len: self.brotli_bytes.len(),
-            brotli_bytes: self.brotli_bytes,
+            brotli_bytes_len: brotli_bytes.len(),
+            brotli_bytes,
             gzip_bytes_len: gzip_bytes.len(),
             gzip_bytes,
         }
