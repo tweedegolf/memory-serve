@@ -213,7 +213,6 @@ fn main() {
         path.to_path_buf()
     };
 
-
     let path = path
         .canonicalize()
         .expect("Unable to canonicalize the path specified by ASSET_DIR.");
