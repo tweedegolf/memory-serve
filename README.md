@@ -34,7 +34,8 @@ memory-serve is designed to work with [axum](https://github.com/tokio-rs/axum)
 ## Usage
 
 Provide a relative path to the directory containing your static assets
-using the `ASSET_PATH` environment variable. This macro creates a data structure intended to
+using the `ASSET_PATH` environment variable. The path will be used in a 
+build script, that creates a data structure intended to
 be consumed by [`MemoryServe::new`]. Calling [`MemoryServe::into_router()`] on
 the resulting instance produces a axum
 [`Router`](https://docs.rs/axum/latest/axum/routing/struct.Router.html) that
