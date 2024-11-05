@@ -87,7 +87,7 @@ fn compress_brotli(input: &[u8]) -> Option<Vec<u8>> {
     Some(writer.into_inner())
 }
 
-pub fn list_assets(base_path: &Path) -> Vec<Asset> {
+pub fn list_assets(base_path: &Path, embed: bool) -> Vec<Asset> {
     let mut assets: Vec<Asset> = WalkDir::new(base_path)
         .into_iter()
         .filter_map(|entry| entry.ok())
@@ -117,7 +117,7 @@ pub fn list_assets(base_path: &Path) -> Vec<Asset> {
             };
 
             // do not load assets into the binary in debug / development mode
-            if cfg!(debug_assertions) {
+            if !embed{
                 log!("including {route} (dynamically)");
 
                 return Some(Asset {
@@ -181,48 +181,12 @@ pub fn list_assets(base_path: &Path) -> Vec<Asset> {
     assets
 }
 
-const ASSET_FILE: &str = "memory_serve_assets.rs";
+const ASSET_FILE: &str = "memory_serve_assets";
+const ENV_NAME: &str = "ASSET_DIR";
 
-fn main() {
-    let out_dir: String = std::env::var("OUT_DIR").expect("OUT_DIR environment variable not set.");
-    let target = Path::new(&out_dir).join(ASSET_FILE);
-
-    let Ok(asset_dir) = std::env::var("ASSET_DIR") else {
-        log!("Please specify the `ASSET_DIR` environment variable.");
-
-        std::fs::write(target, "&[]").expect("Unable to write memory-serve asset file.");
-
-        println!("cargo::rerun-if-env-changed=ASSET_DIR");
-        return;
-    };
-
-    let path = Path::new(&asset_dir);
-
-    let path = if path.is_relative() {
-        // assume the out dit is in the target directory
-        let crate_root = target
-            .parent() // memory-serve
-            .and_then(|p| p.parent()) // build
-            .and_then(|p| p.parent()) // debug/release
-            .and_then(|p| p.parent()) // target
-            .and_then(|p| p.parent()) // crate root
-            .expect("Unable to get crate root directory.");
-
-        crate_root.join(path)
-    } else {
-        path.to_path_buf()
-    };
-
-    let path = path
-        .canonicalize()
-        .expect("Unable to canonicalize the path specified by ASSET_DIR.");
-
-    if !path.exists() {
-        panic!("The path {asset_dir} specified by ASSET_DIR does not exists!");
-    }
-
-    log!("Loading static assets from {asset_dir}...");
-    let assets = list_assets(&path);
+fn include_directory(asset_dir: &str, path: &Path, out_dir: &Path, embed: bool, name: &str) {
+    log!("Loading static assets from {asset_dir}");
+    let assets = list_assets(&path, embed);
 
     // using a string is faster than using quote ;)
     let mut code = "&[".to_string();
@@ -236,7 +200,7 @@ fn main() {
             compressed_bytes,
         } = asset;
 
-        let bytes = if cfg!(debug_assertions) {
+        let bytes = if !embed {
             "None".to_string()
         } else if let Some(compressed_bytes) = &compressed_bytes {
             let file_name = path.file_name().expect("Unable to get file name.");
@@ -265,8 +229,84 @@ fn main() {
 
     code.push(']');
 
+    log!("NAME {name}");
+
+
+    let target = if name == ENV_NAME  {
+        Path::new(&out_dir).join(format!("{ASSET_FILE}.rs"))
+    } else {
+        Path::new(&out_dir).join(format!("{ASSET_FILE}_{name}.rs"))
+    };
+
     std::fs::write(target, code).expect("Unable to write memory-serve asset file.");
 
     println!("cargo::rerun-if-changed={asset_dir}");
-    println!("cargo::rerun-if-env-changed=ASSET_DIR");
+    println!("cargo::rerun-if-env-changed={name}");
+}
+
+
+fn resolve_asset_dir(out_dir: &Path, key: &str, asset_dir: &str) -> PathBuf {
+    let path = Path::new(&asset_dir);
+
+    let path: PathBuf = if path.is_relative() {
+        // assume the out dit is in the target directory
+        let crate_root = out_dir
+            .parent() // memory-serve
+            .and_then(|p| p.parent()) // build
+            .and_then(|p| p.parent()) // debug/release
+            .and_then(|p| p.parent()) // target
+            .and_then(|p| p.parent()) // crate root
+            .expect("Unable to get crate root directory.");
+
+        crate_root.join(path)
+    } else {
+        path.to_path_buf()
+    };
+
+    let path = match path.canonicalize() {
+        Ok(path) => path,
+        Err(e) => panic!("The path {path:?} specified by {key} is not a valid path: {e}"),
+    };
+
+    if !path.exists() {
+        panic!("The path {path:?} specified by {key} does not exists!");
+    }
+
+    path
+}
+
+fn main() {
+    let out_dir: String = std::env::var("OUT_DIR").expect("OUT_DIR environment variable not set.");
+    let out_dir = PathBuf::from(&out_dir);
+
+    // deternmine wheter to dynamically load assets or embed them in the binary
+    let force_embed = std::env::var("CARGO_FEATURE_FORCE_EMBED").unwrap_or_default();
+    let embed = !cfg!(debug_assertions) || force_embed == "1";
+
+    if embed {
+        log!("Embedding assets in binary");
+    } else {
+        log!("Dynamically loading assets");
+    }
+
+    let mut found = false;
+
+    for (key, asset_dir) in std::env::vars() {
+        if key.starts_with(ENV_NAME) {
+            let name = key.trim_start_matches(format!("{ENV_NAME}_").as_str());
+            let path = resolve_asset_dir(&out_dir, &key, &asset_dir);
+            
+            include_directory(&asset_dir, &path, &out_dir, embed, name);
+
+            found = true;
+        }
+    }
+
+    if !found {
+        let target = Path::new(&out_dir).join(format!("{ASSET_FILE}.rs"));
+        log!("Please specify the `{ENV_NAME}` environment variable.");
+        std::fs::write(target, "&[]").expect("Unable to write memory-serve asset file.");
+        println!("cargo::rerun-if-env-changed=ASSET_DIR");
+        return;
+    };
 }
