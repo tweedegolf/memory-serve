@@ -7,7 +7,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  ASSET_DIR: ../static
+  ASSET_DIR: ./static
 
 jobs:
   format:

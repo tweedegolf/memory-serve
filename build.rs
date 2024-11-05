@@ -117,7 +117,7 @@ pub fn list_assets(base_path: &Path, embed: bool) -> Vec<Asset> {
             };
 
             // do not load assets into the binary in debug / development mode
-            if !embed{
+            if !embed {
                 log!("including {route} (dynamically)");
 
                 return Some(Asset {
@@ -186,7 +186,7 @@ const ENV_NAME: &str = "ASSET_DIR";
 
 fn include_directory(asset_dir: &str, path: &Path, out_dir: &Path, embed: bool, name: &str) {
     log!("Loading static assets from {asset_dir}");
-    let assets = list_assets(&path, embed);
+    let assets = list_assets(path, embed);
 
     // using a string is faster than using quote ;)
     let mut code = "&[".to_string();
@@ -231,8 +231,7 @@ fn include_directory(asset_dir: &str, path: &Path, out_dir: &Path, embed: bool, 
 
     log!("NAME {name}");
 
-
-    let target = if name == ENV_NAME  {
+    let target = if name == ENV_NAME {
         Path::new(&out_dir).join(format!("{ASSET_FILE}.rs"))
     } else {
         Path::new(&out_dir).join(format!("{ASSET_FILE}_{name}.rs"))
@@ -243,7 +242,6 @@ fn include_directory(asset_dir: &str, path: &Path, out_dir: &Path, embed: bool, 
     println!("cargo::rerun-if-changed={asset_dir}");
     println!("cargo::rerun-if-env-changed={name}");
 }
-
 
 fn resolve_asset_dir(out_dir: &Path, key: &str, asset_dir: &str) -> PathBuf {
     let path = Path::new(&asset_dir);
@@ -295,7 +293,7 @@ fn main() {
         if key.starts_with(ENV_NAME) {
             let name = key.trim_start_matches(format!("{ENV_NAME}_").as_str());
             let path = resolve_asset_dir(&out_dir, &key, &asset_dir);
-            
+
             include_directory(&asset_dir, &path, &out_dir, embed, name);
 
             found = true;
@@ -307,6 +305,5 @@ fn main() {
         log!("Please specify the `{ENV_NAME}` environment variable.");
         std::fs::write(target, "&[]").expect("Unable to write memory-serve asset file.");
         println!("cargo::rerun-if-env-changed=ASSET_DIR");
-        return;
     };
 }
