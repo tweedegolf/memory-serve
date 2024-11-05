@@ -56,7 +56,39 @@ impl MemoryServe {
     /// created at build time.
     /// Specify which asset directory to include using the environment variable `ASSET_DIR`.
     pub fn new() -> Self {
-        let assets: &[Asset] = include!(concat!(env!("OUT_DIR"), "/memory_serve_assets.rs"));
+        let assets: &[(&str, &[Asset])] =
+            include!(concat!(env!("OUT_DIR"), "/memory_serve_assets.rs"));
+
+        if assets.is_empty() {
+            panic!("No assets found, did you forget to set the ASSET_DIR environment variable?");
+        }
+
+        Self {
+            assets: assets[0].1,
+            ..Default::default()
+        }
+    }
+
+    /// Include a directory using a named environment variable, prefixed by ASSRT_DIR_.
+    /// Specify which asset directory to include using the environment variable `ASSET_DIR_<SOME NAME>`.
+    /// The name should be in uppercase.
+    /// For example to include assets from the public directory using the name PUBLIC, set the enirobment variable
+    /// `ASSET_DIR_PUBLIC=./public` and call `MemoryServe::from_name("PUBLIC")`.
+    pub fn from_name(name: &str) -> Self {
+        let assets: &[(&str, &[Asset])] =
+            include!(concat!(env!("OUT_DIR"), "/memory_serve_assets.rs"));
+
+        let assets = assets
+            .iter()
+            .find(|(n, _)| n == &name)
+            .map(|(_, a)| *a)
+            .unwrap_or_default();
+
+        if assets.is_empty() {
+            panic!(
+                "No assets found, did you forget to set the ASSET_DIR_{name} environment variable?"
+            );
+        }
 
         Self {
             assets,
@@ -295,7 +327,9 @@ mod tests {
 
     #[test]
     fn test_load_assets() {
-        let assets: &[Asset] = include!(concat!(env!("OUT_DIR"), "/memory_serve_assets.rs"));
+        let assets_list: &[(&str, &[Asset])] =
+            include!(concat!(env!("OUT_DIR"), "/memory_serve_assets.rs"));
+        let assets = assets_list[0].1;
         let routes: Vec<&str> = assets.iter().map(|a| a.route).collect();
         let content_types: Vec<&str> = assets.iter().map(|a| a.content_type).collect();
         let etags: Vec<&str> = assets.iter().map(|a| a.etag).collect();

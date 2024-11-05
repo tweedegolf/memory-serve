@@ -181,10 +181,10 @@ pub fn list_assets(base_path: &Path, embed: bool) -> Vec<Asset> {
     assets
 }
 
-const ASSET_FILE: &str = "memory_serve_assets";
+const ASSET_FILE: &str = "memory_serve_assets.rs";
 const ENV_NAME: &str = "ASSET_DIR";
 
-fn include_directory(asset_dir: &str, path: &Path, out_dir: &Path, embed: bool, name: &str) {
+fn include_directory(asset_dir: &str, path: &Path, out_dir: &Path, embed: bool) -> String {
     log!("Loading static assets from {asset_dir}");
     let assets = list_assets(path, embed);
 
@@ -229,18 +229,9 @@ fn include_directory(asset_dir: &str, path: &Path, out_dir: &Path, embed: bool, 
 
     code.push(']');
 
-    log!("NAME {name}");
-
-    let target = if name == ENV_NAME {
-        Path::new(&out_dir).join(format!("{ASSET_FILE}.rs"))
-    } else {
-        Path::new(&out_dir).join(format!("{ASSET_FILE}_{name}.rs"))
-    };
-
-    std::fs::write(target, code).expect("Unable to write memory-serve asset file.");
-
     println!("cargo::rerun-if-changed={asset_dir}");
-    println!("cargo::rerun-if-env-changed={name}");
+
+    code
 }
 
 fn resolve_asset_dir(out_dir: &Path, key: &str, asset_dir: &str) -> PathBuf {
@@ -289,21 +280,29 @@ fn main() {
 
     let mut found = false;
 
+    // using a string is faster than using quote ;)
+    let mut code = "&[".to_string();
+
     for (key, asset_dir) in std::env::vars() {
         if key.starts_with(ENV_NAME) {
             let name = key.trim_start_matches(format!("{ENV_NAME}_").as_str());
             let path = resolve_asset_dir(&out_dir, &key, &asset_dir);
 
-            include_directory(&asset_dir, &path, &out_dir, embed, name);
+            let assets = include_directory(&asset_dir, &path, &out_dir, embed);
+            code = format!("{code}(\"{name}\", {assets}),");
 
             found = true;
         }
     }
 
     if !found {
-        let target = Path::new(&out_dir).join(format!("{ASSET_FILE}.rs"));
         log!("Please specify the `{ENV_NAME}` environment variable.");
-        std::fs::write(target, "&[]").expect("Unable to write memory-serve asset file.");
-        println!("cargo::rerun-if-env-changed=ASSET_DIR");
-    };
+    }
+
+    code.push(']');
+
+    println!("cargo::rerun-if-env-changed={ENV_NAME}");
+
+    let target = out_dir.join(ASSET_FILE);
+    std::fs::write(target, code).expect("Unable to write memory-serve asset file.");
 }
