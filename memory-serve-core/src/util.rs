@@ -2,6 +2,7 @@ use std::{io::Write, path::Path};
 
 use mime_guess::mime;
 
+/// Convert a path to a (HTTP) path / route
 pub(crate) fn path_to_route(base: &Path, path: &Path) -> String {
     let relative_path = path
         .strip_prefix(base)
@@ -19,6 +20,7 @@ pub(crate) fn path_to_route(base: &Path, path: &Path) -> String {
     format!("/{route}")
 }
 
+/// Determine the mime type of a file
 pub(crate) fn path_to_content_type(path: &Path) -> Option<String> {
     let ext = path.extension()?;
 
@@ -30,6 +32,7 @@ pub(crate) fn path_to_content_type(path: &Path) -> Option<String> {
     )
 }
 
+/// Compress a byte slice using brotli
 pub(crate) fn compress_brotli(input: &[u8]) -> Option<Vec<u8>> {
     let mut writer = brotli::CompressorWriter::new(Vec::new(), 4096, 11, 22);
     writer.write_all(input).ok()?;

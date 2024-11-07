@@ -33,11 +33,18 @@ memory-serve is designed to work with [axum](https://github.com/tokio-rs/axum)
 
 ## Usage
 
-Provide a relative or absolute path to the directory containing your static assets
-using the `ASSET_PATH` environment variable. The path will be used in a 
-build script, that creates a data structure intended to
-be consumed by [`MemoryServe::new`]. Calling [`MemoryServe::into_router()`] on
-the resulting instance produces a axum
+There are two mechanisms to include assets at compile time.
+
+1. Specify the path using a enviroment variable `ASSET_PATH` and call: `MemoryServe::from_env()` (best-practice)
+2. Call the `load_assets!` macro, and pass this to the constructor: `MemoryServe::new(load_assets!("/foo/bar"))`
+
+The environment variable is handled by a build script and instructs cargo to re-evaluate when an asset in the directory changes.
+The output of the macro might be cached between build.
+
+Both options try to be smart in resolving absolute and relative paths.
+
+When an instance of `MemoryServe` is created, we can bind these to your axum instance.
+Calling [`MemoryServe::into_router()`] on the `MemoryServe` instance produces an axum
 [`Router`](https://docs.rs/axum/latest/axum/routing/struct.Router.html) that
 can either be merged in another `Router` or used directly in a server by
 calling [`Router::into_make_service()`](https://docs.rs/axum/latest/axum/routing/struct.Router.html#method.into_make_service).
@@ -46,7 +53,17 @@ calling [`Router::into_make_service()`](https://docs.rs/axum/latest/axum/routing
 
 Multiple directories can be included using different environment variables, all prefixed by `ASSET_PATH_`.
 For example: if you specify `ASSET_PATH_FOO` and `ASSET_PATH_BAR` the memory serve instances can be loaded
-using `MemoryServe::from_name("FOO")` and `MemoryServe::from_name("BAR")` respectively.
+using `MemoryServe::from_env_name("FOO")` and `MemoryServe::from_env_name("BAR")` respectively.
+
+### Features
+
+Use the `force-embed` feature flag to always include assets in the binary - also in debug builds.
+
+### Environment variables
+
+Use `MEMORY_SERVE_ROOT` to specify a root directory for relative paths provided to the `load_assets!` macro (or th `ASSET_PATH` variable).
+
+Uee `MEMORY_SERVE_QUIET=1` to not print log messages at compile time.
 
 ## Example
 

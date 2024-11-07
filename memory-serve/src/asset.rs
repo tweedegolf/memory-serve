@@ -5,8 +5,8 @@ use axum::{
     },
     response::{IntoResponse, Response},
 };
-use tracing::debug;
 use memory_serve_core::COMPRESS_TYPES;
+use tracing::debug;
 
 use crate::{
     util::{compress_brotli, compress_gzip, content_length, supports_encoding},
@@ -22,6 +22,7 @@ const GZIP_ENCODING: &str = "gzip";
 const GZIP_HEADER: (HeaderName, HeaderValue) =
     (CONTENT_ENCODING, HeaderValue::from_static(GZIP_ENCODING));
 
+/// Represents a static asset that can be served
 #[derive(Debug)]
 pub struct Asset {
     pub route: &'static str,

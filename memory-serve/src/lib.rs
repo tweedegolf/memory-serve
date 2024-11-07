@@ -56,6 +56,9 @@ pub struct MemoryServe {
 }
 
 impl MemoryServe {
+    /// Initiate a `MemoryServe` instance, takes the output of `load_assets!`
+    /// as an argument. `load_assets!` takes a directory name relative from
+    /// the project root.
     pub fn new(assets: &'static [Asset]) -> Self {
         Self {
             assets,
@@ -402,7 +405,9 @@ mod tests {
 
     #[tokio::test]
     async fn brotli_compression() {
-        let memory_router = MemoryServe::new(load_assets!("../static")).enable_brotli(true).into_router();
+        let memory_router = MemoryServe::new(load_assets!("../static"))
+            .enable_brotli(true)
+            .into_router();
         let (code, headers) = get(
             memory_router.clone(),
             "/index.html",
@@ -418,7 +423,9 @@ mod tests {
         assert_eq!(length.parse::<i32>().unwrap(), 178);
 
         // check disable compression
-        let memory_router = MemoryServe::new(load_assets!("../static")).enable_brotli(false).into_router();
+        let memory_router = MemoryServe::new(load_assets!("../static"))
+            .enable_brotli(false)
+            .into_router();
         let (code, headers) = get(
             memory_router.clone(),
             "/index.html",
@@ -434,7 +441,9 @@ mod tests {
 
     #[tokio::test]
     async fn gzip_compression() {
-        let memory_router = MemoryServe::new(load_assets!("../static")).enable_gzip(true).into_router();
+        let memory_router = MemoryServe::new(load_assets!("../static"))
+            .enable_gzip(true)
+            .into_router();
         let (code, headers) = get(
             memory_router.clone(),
             "/index.html",
@@ -451,7 +460,9 @@ mod tests {
         assert_eq!(length.parse::<i32>().unwrap(), 274);
 
         // check disable compression
-        let memory_router = MemoryServe::new(load_assets!("../static")).enable_gzip(false).into_router();
+        let memory_router = MemoryServe::new(load_assets!("../static"))
+            .enable_gzip(false)
+            .into_router();
         let (code, headers) = get(
             memory_router.clone(),
             "/index.html",
@@ -467,7 +478,9 @@ mod tests {
 
     #[tokio::test]
     async fn index_file() {
-        let memory_router = MemoryServe::new(load_assets!("../static")).index_file(None).into_router();
+        let memory_router = MemoryServe::new(load_assets!("../static"))
+            .index_file(None)
+            .into_router();
 
         let (code, _) = get(memory_router.clone(), "/", "accept", "*").await;
         assert_eq!(code, 404);
@@ -501,7 +514,9 @@ mod tests {
 
     #[tokio::test]
     async fn clean_url() {
-        let memory_router = MemoryServe::new(load_assets!("../static")).enable_clean_url(true).into_router();
+        let memory_router = MemoryServe::new(load_assets!("../static"))
+            .enable_clean_url(true)
+            .into_router();
 
         let (code, _) = get(memory_router.clone(), "/about.html", "accept", "*").await;
         assert_eq!(code, 404);

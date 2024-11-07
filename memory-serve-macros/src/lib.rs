@@ -1,7 +1,6 @@
-use proc_macro::TokenStream;
-use tracing::warn;
-use std::{env, path::Path};
 use memory_serve_core::assets_to_code;
+use proc_macro::TokenStream;
+use std::{env, path::Path};
 
 #[proc_macro]
 pub fn load_assets(input: TokenStream) -> TokenStream {
@@ -9,14 +8,10 @@ pub fn load_assets(input: TokenStream) -> TokenStream {
     let asset_dir = input.trim_matches('"');
     let mut path = Path::new(&asset_dir).to_path_buf();
 
-    // skip if a subscriber is already registered (for instance by rust_analyzer)
-    let _ = tracing_subscriber::fmt()
-        .without_time()
-        .with_target(false)
-        .try_init();
-
-    fn log (msg: &str) {
-        warn!("{msg}");
+    fn log(msg: &str) {
+        if std::env::var("MEMORY_SERVE_QUIET") != Ok("1".to_string()) {
+            println!("  memory_serve: {msg}");
+        }
     }
 
     if path.is_relative() {

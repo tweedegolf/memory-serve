@@ -1,15 +1,14 @@
 [package]
 name = "memory-serve"
-version = "1.0.0"
-edition = "2021"
-license = "Apache-2.0 OR MIT"
-repository = "https://github.com/tweedegolf/memory-serve"
-description = "Fast static file serving for axum web applications"
-publish = true
+description.workspace = true
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
 
 [features]
 force-embed = ["memory-serve-macros/force-embed"]
-silent = ["memory-serve-macros/silent"]
 
 [dependencies]
 memory-serve-core = { path = "../memory-serve-core" }

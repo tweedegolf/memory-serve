@@ -2,8 +2,13 @@ use std::path::Path;
 
 use walkdir::WalkDir;
 
-use crate::{asset::Asset, util::{compress_brotli, path_to_content_type, path_to_route}, COMPRESS_TYPES};
+use crate::{
+    asset::Asset,
+    util::{compress_brotli, path_to_content_type, path_to_route},
+    COMPRESS_TYPES,
+};
 
+/// List all assets in the given directory (recursively) and return a list of assets with metadata
 pub fn list_assets(base_path: &Path, embed: bool, log: fn(&str)) -> Vec<Asset> {
     let mut assets: Vec<Asset> = WalkDir::new(base_path)
         .into_iter()
@@ -13,7 +18,9 @@ pub fn list_assets(base_path: &Path, embed: bool, log: fn(&str)) -> Vec<Asset> {
             let route = path_to_route(base_path, entry.path());
 
             let Ok(metadata) = entry.metadata() else {
-                log(&format!("skipping file {route}, could not get file metadata"));
+                log(&format!(
+                    "skipping file {route}, could not get file metadata"
+                ));
                 return None;
             };
 
@@ -29,7 +36,9 @@ pub fn list_assets(base_path: &Path, embed: bool, log: fn(&str)) -> Vec<Asset> {
             }
 
             let Some(content_type) = path_to_content_type(entry.path()) else {
-                log(&format!("skipping file {route}, could not determine file extension"));
+                log(&format!(
+                    "skipping file {route}, could not determine file extension"
+                ));
                 return None;
             };
 
@@ -71,7 +80,9 @@ pub fn list_assets(base_path: &Path, embed: bool, log: fn(&str)) -> Vec<Asset> {
             if is_compress_type {
                 match brotli_bytes {
                     Some(brotli_bytes) if brotli_bytes.len() >= original_size => {
-                        log(&format!("including {route} {original_size} bytes (compression unnecessary)"));
+                        log(&format!(
+                            "including {route} {original_size} bytes (compression unnecessary)"
+                        ));
                     }
                     Some(brotli_bytes) => {
                         log(&format!(
@@ -82,7 +93,9 @@ pub fn list_assets(base_path: &Path, embed: bool, log: fn(&str)) -> Vec<Asset> {
                         asset.compressed_bytes = Some(brotli_bytes);
                     }
                     None => {
-                        log(&format!("including {route} {original_size} bytes (compression failed)"));
+                        log(&format!(
+                            "including {route} {original_size} bytes (compression failed)"
+                        ));
                     }
                 }
             } else {

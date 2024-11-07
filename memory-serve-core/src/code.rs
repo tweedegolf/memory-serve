@@ -2,8 +2,22 @@ use std::path::Path;
 
 use crate::{asset::Asset, list::list_assets};
 
-pub fn assets_to_code(asset_dir: &str, path: &Path, out_dir: &Path, embed: bool, log: fn(&str)) -> String {
+/// Generate code with metadata and contents for the assets
+pub fn assets_to_code(
+    asset_dir: &str,
+    path: &Path,
+    out_dir: &Path,
+    embed: bool,
+    log: fn(&str),
+) -> String {
     log(&format!("Loading static assets from {asset_dir}"));
+
+    if embed {
+        log("Embedding assets into binary");
+    } else {
+        log("Not embedding assets into binary, assets will load dynamically");
+    }
+
     let assets = list_assets(path, embed, log);
 
     // using a string is faster than using quote ;)

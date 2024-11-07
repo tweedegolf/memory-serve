@@ -1,12 +1,12 @@
-
 mod asset;
-mod list;
 mod code;
+mod list;
 mod util;
 
 pub use asset::Asset;
 pub use code::assets_to_code;
 
+/// File mime types that can possibly be compressed
 pub const COMPRESS_TYPES: &[&str] = &[
     "text/html",
     "text/css",

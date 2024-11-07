@@ -7,7 +7,6 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  ASSET_DIR: ./static
 
 jobs:
   format:
@@ -57,6 +56,7 @@ jobs:
         prefix-key: cargo
         shared-key: test
     - run: cargo test --all-features --all-targets
+      working-directory: ./memory-serve
 
   test-release:
     runs-on: ubuntu-latest

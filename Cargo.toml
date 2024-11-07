@@ -4,7 +4,7 @@ exclude = ["example"]
 resolver = "2"
 
 [workspace.package]
-version = "1.0.0"
+version = "1.0.0-beta.0"
 edition = "2021"
 license = "Apache-2.0 OR MIT"
 repository = "https://github.com/tweedegolf/memory-serve"

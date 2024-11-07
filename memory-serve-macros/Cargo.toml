@@ -12,10 +12,7 @@ proc-macro = true
 
 [features]
 force-embed = []
-silent = []
 
 [dependencies]
 memory-serve-core = { path = "../memory-serve-core" }
 proc-macro2 = "1.0"
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["fmt", "ansi"], default-features = false }
