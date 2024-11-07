@@ -56,7 +56,6 @@ jobs:
         prefix-key: cargo
         shared-key: test
     - run: cargo test --all-features --all-targets
-      working-directory: ./memory-serve
 
   test-release:
     runs-on: ubuntu-latest

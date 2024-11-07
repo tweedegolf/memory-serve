@@ -1,15 +1,12 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::{asset::Asset, list::list_assets};
 
 /// Generate code with metadata and contents for the assets
-pub fn assets_to_code(
-    asset_dir: &str,
-    path: &Path,
-    out_dir: &Path,
-    embed: bool,
-    log: fn(&str),
-) -> String {
+pub fn assets_to_code(asset_dir: &str, path: &Path, embed: bool, log: fn(&str)) -> String {
+    let out_dir: String = std::env::var("OUT_DIR").expect("OUT_DIR environment variable not set.");
+    let out_dir = PathBuf::from(&out_dir);
+
     log(&format!("Loading static assets from {asset_dir}"));
 
     if embed {

@@ -62,7 +62,7 @@ fn main() {
             let name = key.trim_start_matches(format!("{ENV_NAME}_").as_str());
             let path = resolve_asset_dir(&out_dir, &key, &asset_dir);
 
-            let assets = assets_to_code(&asset_dir, &path, &out_dir, embed, log);
+            let assets = assets_to_code(&asset_dir, &path, embed, log);
 
             println!("cargo::rerun-if-changed={asset_dir}");
 
