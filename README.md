@@ -52,12 +52,12 @@ using `MemoryServe::from_name("FOO")` and `MemoryServe::from_name("BAR")` respec
 
 ```rust,no_run
 use axum::{response::Html, routing::get, Router};
-use memory_serve::MemoryServe;
+use memory_serve::{MemoryServe, load_assets};
 use std::net::SocketAddr;
 
 #[tokio::main]
 async fn main() {
-    let memory_router = MemoryServe::new()
+    let memory_router = MemoryServe::new(load_assets!("../static"))
         .index_file(Some("/index.html"))
         .into_router();
 

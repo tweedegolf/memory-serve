@@ -9,7 +9,7 @@ async fn main() {
         .with_max_level(Level::TRACE)
         .init();
 
-    let memory_router = MemoryServe::new()
+    let memory_router = MemoryServe::from_env()
         .index_file(Some("/index.html"))
         .into_router();
 

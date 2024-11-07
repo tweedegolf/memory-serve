@@ -425,10 +425,30 @@ dependencies = [
  "axum",
  "brotli",
  "flate2",
- "mime_guess",
+ "memory-serve-core",
+ "memory-serve-macros",
  "sha256",
  "tracing",
+]
+
+[[package]]
+name = "memory-serve-core"
+version = "1.0.0"
+dependencies = [
+ "brotli",
+ "mime_guess",
+ "sha256",
  "walkdir",
+]
+
+[[package]]
+name = "memory-serve-macros"
+version = "1.0.0"
+dependencies = [
+ "memory-serve-core",
+ "proc-macro2",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]

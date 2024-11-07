@@ -3,7 +3,7 @@ name = "memory-serve-test"
 edition = "2021"
 
 [dependencies]
-memory-serve = { path = "../"}
+memory-serve = { path = "../memory-serve"}
 axum = "0.7"
 tokio = { version = "1.0", features = ["full"] }
 tracing-subscriber = "0.3"

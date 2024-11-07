@@ -1,0 +1,21 @@
+[package]
+name = "memory-serve-macros"
+description = "Macro for memory-serve"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lib]
+proc-macro = true
+
+[features]
+force-embed = []
+silent = []
+
+[dependencies]
+memory-serve-core = { path = "../memory-serve-core" }
+proc-macro2 = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["fmt", "ansi"], default-features = false }

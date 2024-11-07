@@ -6,23 +6,12 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use tracing::debug;
+use memory_serve_core::COMPRESS_TYPES;
 
 use crate::{
     util::{compress_brotli, compress_gzip, content_length, supports_encoding},
     ServeOptions,
 };
-
-pub const COMPRESS_TYPES: &[&str] = &[
-    "text/html",
-    "text/css",
-    "application/json",
-    "text/javascript",
-    "application/javascript",
-    "application/xml",
-    "text/xml",
-    "image/svg+xml",
-    "application/wasm",
-];
 
 const BROTLI_ENCODING: &str = "br";
 #[allow(clippy::declare_interior_mutable_const)]

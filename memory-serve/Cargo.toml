@@ -1,0 +1,29 @@
+[package]
+name = "memory-serve"
+version = "1.0.0"
+edition = "2021"
+license = "Apache-2.0 OR MIT"
+repository = "https://github.com/tweedegolf/memory-serve"
+description = "Fast static file serving for axum web applications"
+publish = true
+
+[features]
+force-embed = ["memory-serve-macros/force-embed"]
+silent = ["memory-serve-macros/silent"]
+
+[dependencies]
+memory-serve-core = { path = "../memory-serve-core" }
+memory-serve-macros = { path = "../memory-serve-macros" }
+brotli = "7.0"
+flate2 = "1.0"
+axum = { version = "0.7", default-features = false }
+tracing = "0.1"
+sha256 = "1.4"
+
+[build-dependencies]
+memory-serve-core = { path = "../memory-serve-core" }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["full"] }
+tower = { version = "0.5", features = ["util"] }
+axum = { version = "0.7" }
