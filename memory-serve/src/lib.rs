@@ -365,7 +365,7 @@ mod tests {
                 "text/html"
             ]
         );
-        if cfg!(debug_assertions) || cfg!(feature = "force-embed") {
+        if cfg!(debug_assertions) && !cfg!(feature = "force-embed") {
             assert_eq!(etags, ["", "", "", "", "", "", ""]);
         } else {
             assert_eq!(
