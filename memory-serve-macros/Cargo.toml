@@ -15,4 +15,3 @@ force-embed = []
 
 [dependencies]
 memory-serve-core = { path = "../memory-serve-core" }
-proc-macro2 = "1.0"

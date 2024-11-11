@@ -36,9 +36,9 @@ pub fn assets_to_code(asset_dir: &str, path: &Path, embed: bool, log: fn(&str)) 
             let file_path = Path::new(&out_dir).join(file_name);
             std::fs::write(&file_path, compressed_bytes).expect("Unable to write file to out dir.");
 
-            format!("Some(include_bytes!(\"{}\"))", file_path.to_string_lossy())
+            format!("Some(include_bytes!(r\"{}\"))", file_path.to_string_lossy())
         } else {
-            format!("Some(include_bytes!(\"{}\"))", path.to_string_lossy())
+            format!("Some(include_bytes!(r\"{}\"))", path.to_string_lossy())
         };
 
         let is_compressed = compressed_bytes.is_some();
@@ -46,8 +46,8 @@ pub fn assets_to_code(asset_dir: &str, path: &Path, embed: bool, log: fn(&str)) 
         code.push_str(&format!(
             "
             memory_serve::Asset {{
-                route: \"{route}\",
-                path: {path:?},
+                route: r\"{route}\",
+                path: r{path:?},
                 content_type: \"{content_type}\",
                 etag: \"{etag}\",
                 bytes: {bytes},
