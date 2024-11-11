@@ -5,18 +5,16 @@ use axum::{
 };
 use std::future::ready;
 use tracing::info;
-
 mod asset;
 mod cache_control;
 mod util;
 
+#[allow(unused)]
+use crate as memory_serve;
+
 use crate::util::{compress_gzip, decompress_brotli};
 
 pub use crate::{asset::Asset, cache_control::CacheControl};
-
-/// Macro to load a directory of static files into the resulting binary
-/// (possibly compressed) and create a data structure of (meta)data
-/// as an input for [`MemoryServe::new`]
 pub use memory_serve_macros::load_assets;
 
 #[derive(Debug, Clone, Copy)]
@@ -50,8 +48,6 @@ impl Default for ServeOptions {
 
 /// Helper struct to create and configure an axum to serve static files from
 /// memory.
-/// Initiate an instance with the `MemoryServe::new` method and pass a call
-/// to  the `load_assets!` macro as the single argument.
 #[derive(Debug, Default)]
 pub struct MemoryServe {
     options: ServeOptions,
@@ -70,9 +66,47 @@ impl MemoryServe {
         }
     }
 
+    /// Initiate a `MemoryServe` instance, takes the contents of `memory_serve_assets.bin`
+    /// created at build time.
+    /// Specify which asset directory to include using the environment variable `ASSET_DIR`.
+    pub fn from_env() -> Self {
+        let assets: &[(&str, &[Asset])] =
+            include!(concat!(env!("OUT_DIR"), "/memory_serve_assets.rs"));
+
+        if assets.is_empty() {
+            panic!("No assets found, did you forget to set the ASSET_DIR environment variable?");
+        }
+
+        Self::new(assets[0].1)
+    }
+
+    /// Include a directory using a named environment variable, prefixed by ASSRT_DIR_.
+    /// Specify which asset directory to include using the environment variable `ASSET_DIR_<SOME NAME>`.
+    /// The name should be in uppercase.
+    /// For example to include assets from the public directory using the name PUBLIC, set the enirobment variable
+    /// `ASSET_DIR_PUBLIC=./public` and call `MemoryServe::from_name("PUBLIC")`.
+    pub fn from_env_name(name: &str) -> Self {
+        let assets: &[(&str, &[Asset])] =
+            include!(concat!(env!("OUT_DIR"), "/memory_serve_assets.rs"));
+
+        let assets = assets
+            .iter()
+            .find(|(n, _)| n == &name)
+            .map(|(_, a)| *a)
+            .unwrap_or_default();
+
+        if assets.is_empty() {
+            panic!(
+                "No assets found, did you forget to set the ASSET_DIR_{name} environment variable?"
+            );
+        }
+
+        Self::new(assets)
+    }
+
     /// Which static file to serve on the route "/" (the index)
-    /// The path (or route) should be relative to the directory passed to
-    /// the `load_assets!` macro, but prepended with a slash.
+    /// The path (or route) should be relative to the directory set with
+    /// the `ASSET_DIR` variable, but prepended with a slash.
     /// By default this is `Some("/index.html")`
     pub fn index_file(mut self, index_file: Option<&'static str>) -> Self {
         self.options.index_file = index_file;
@@ -90,8 +124,8 @@ impl MemoryServe {
 
     /// Which static file to serve when no other routes are matched, also see
     /// [fallback](https://docs.rs/axum/latest/axum/routing/struct.Router.html#method.fallback)
-    /// The path (or route) should be relative to the directory passed to
-    /// the `load_assets!` macro, but prepended with a slash.
+    /// The path (or route) should be relative to the directory set with
+    /// the `ASSET_DIR` variable, but prepended with a slash.
     /// By default this is `None`, which means axum will return an empty
     /// response with a HTTP 404 status code when no route matches.
     pub fn fallback(mut self, fallback: Option<&'static str>) -> Self {
@@ -167,33 +201,48 @@ impl MemoryServe {
         let options = Box::leak(Box::new(self.options));
 
         for asset in self.assets {
-            let bytes = if asset.bytes.is_empty() && !asset.brotli_bytes.is_empty() {
-                Box::new(decompress_brotli(asset.brotli_bytes).unwrap_or_default()).leak()
-            } else {
-                asset.bytes
-            };
+            let mut bytes = asset.bytes.unwrap_or_default();
 
-            let gzip_bytes = if !asset.brotli_bytes.is_empty() && options.enable_gzip {
+            if asset.is_compressed {
+                bytes = Box::new(decompress_brotli(bytes).unwrap_or_default()).leak()
+            }
+
+            let gzip_bytes = if asset.is_compressed && options.enable_gzip {
                 Box::new(compress_gzip(bytes).unwrap_or_default()).leak()
             } else {
                 Default::default()
             };
 
+            let brotli_bytes = if asset.is_compressed {
+                asset.bytes.unwrap_or_default()
+            } else {
+                Default::default()
+            };
+
             if !bytes.is_empty() {
-                if !asset.brotli_bytes.is_empty() {
+                if asset.is_compressed {
                     info!(
                         "serving {} {} -> {} bytes (compressed)",
                         asset.route,
                         bytes.len(),
-                        asset.brotli_bytes.len()
+                        brotli_bytes.len()
                     );
                 } else {
                     info!("serving {} {} bytes", asset.route, bytes.len());
                 }
+            } else {
+                info!("serving {} (dynamically)", asset.route);
             }
 
             let handler = |headers: HeaderMap| {
-                ready(asset.handler(&headers, StatusCode::OK, bytes, gzip_bytes, options))
+                ready(asset.handler(
+                    &headers,
+                    StatusCode::OK,
+                    bytes,
+                    brotli_bytes,
+                    gzip_bytes,
+                    options,
+                ))
             };
 
             if Some(asset.route) == options.fallback {
@@ -204,6 +253,7 @@ impl MemoryServe {
                         &headers,
                         options.fallback_status,
                         bytes,
+                        brotli_bytes,
                         gzip_bytes,
                         options,
                     ))
@@ -246,7 +296,7 @@ impl MemoryServe {
 
 #[cfg(test)]
 mod tests {
-    use crate::{self as memory_serve, load_assets, Asset, CacheControl, MemoryServe};
+    use crate::{self as memory_serve, Asset, CacheControl, MemoryServe};
     use axum::{
         body::Body,
         http::{
@@ -256,6 +306,7 @@ mod tests {
         },
         Router,
     };
+    use memory_serve_macros::load_assets;
     use tower::ServiceExt;
 
     async fn get(
@@ -283,9 +334,9 @@ mod tests {
         headers.get(name).unwrap().to_str().unwrap()
     }
 
-    #[test]
-    fn test_load_assets() {
-        let assets: &'static [Asset] = load_assets!("../static");
+    #[tokio::test]
+    async fn test_load_assets() {
+        let assets: &[Asset] = load_assets!("../static");
         let routes: Vec<&str> = assets.iter().map(|a| a.route).collect();
         let content_types: Vec<&str> = assets.iter().map(|a| a.content_type).collect();
         let etags: Vec<&str> = assets.iter().map(|a| a.etag).collect();
@@ -314,7 +365,7 @@ mod tests {
                 "text/html"
             ]
         );
-        if cfg!(debug_assertions) {
+        if cfg!(debug_assertions) && !cfg!(feature = "force-embed") {
             assert_eq!(etags, ["", "", "", "", "", "", ""]);
         } else {
             assert_eq!(
@@ -400,6 +451,7 @@ mod tests {
             "gzip",
         )
         .await;
+
         let encoding = get_header(&headers, &CONTENT_ENCODING);
         let length = get_header(&headers, &CONTENT_LENGTH);
 

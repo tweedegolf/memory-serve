@@ -1,13 +1,15 @@
 use axum::{response::Html, routing::get, Router};
-use memory_serve::{load_assets, MemoryServe};
+use memory_serve::{MemoryServe, load_assets};
 use std::net::SocketAddr;
-use tracing::info;
+use tracing::{info, Level};
 
 #[tokio::main]
 async fn main() {
-    tracing_subscriber::fmt().init();
+    tracing_subscriber::fmt()
+        .with_max_level(Level::TRACE)
+        .init();
 
-    let memory_router = MemoryServe::new(load_assets!("../../static"))
+    let memory_router = MemoryServe::new(load_assets!("../static"))
         .index_file(Some("/index.html"))
         .into_router();
 

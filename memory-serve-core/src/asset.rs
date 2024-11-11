@@ -1,13 +1,12 @@
-use syn::LitByteStr;
+use std::path::PathBuf;
 
 /// Internal data structure
-pub(crate) struct Asset {
-    pub(crate) route: String,
-    pub(crate) path: String,
-    pub(crate) etag: String,
-    pub(crate) content_type: String,
-    pub(crate) bytes: LitByteStr,
-    pub(crate) brotli_bytes: LitByteStr,
+pub struct Asset {
+    pub route: String,
+    pub path: PathBuf,
+    pub etag: String,
+    pub content_type: String,
+    pub compressed_bytes: Option<Vec<u8>>,
 }
 
 impl PartialEq for Asset {

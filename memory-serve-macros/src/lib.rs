@@ -1,62 +1,40 @@
+use memory_serve_core::assets_to_code;
 use proc_macro::TokenStream;
 use std::{env, path::Path};
-use utils::list_assets;
-
-mod asset;
-mod utils;
-
-use crate::asset::Asset;
 
 #[proc_macro]
 pub fn load_assets(input: TokenStream) -> TokenStream {
     let input = input.to_string();
-    let input = input.trim_matches('"');
-    let mut asset_path = Path::new(&input).to_path_buf();
+    let asset_dir = input.trim_matches('"');
+    let mut path = Path::new(&asset_dir).to_path_buf();
 
-    // skip if a subscriber is already registered (for instance by rust_analyzer)
-    let _ = tracing_subscriber::fmt()
-        .without_time()
-        .with_target(false)
-        .try_init();
+    fn log(msg: &str) {
+        if std::env::var("MEMORY_SERVE_QUIET") != Ok("1".to_string()) {
+            println!("  memory_serve: {msg}");
+        }
+    }
 
-    if asset_path.is_relative() {
+    if path.is_relative() {
         if let Ok(root_dir) = env::var("MEMORY_SERVE_ROOT") {
-            asset_path = Path::new(&root_dir).join(asset_path);
+            path = Path::new(&root_dir).join(path);
         } else if let Ok(crate_dir) = env::var("CARGO_MANIFEST_DIR") {
-            asset_path = Path::new(&crate_dir).join(asset_path);
+            path = Path::new(&crate_dir).join(path);
         } else {
             panic!("Relative path provided but CARGO_MANIFEST_DIR environment variable not set");
         }
     }
 
-    asset_path = asset_path
+    path = path
         .canonicalize()
         .expect("Could not canonicalize the provided path");
 
-    if !asset_path.exists() {
-        panic!("The path {:?} does not exists!", asset_path);
+    if !path.exists() {
+        panic!("The path {path:?} does not exists!");
     }
 
-    let files: Vec<Asset> = list_assets(&asset_path);
+    let embed = !cfg!(debug_assertions) || cfg!(feature = "force-embed");
 
-    let route = files.iter().map(|a| &a.route);
-    let path = files.iter().map(|a| &a.path);
-    let content_type = files.iter().map(|a| &a.content_type);
-    let etag = files.iter().map(|a| &a.etag);
-    let bytes = files.iter().map(|a| &a.bytes);
-    let brotli_bytes = files.iter().map(|a| &a.brotli_bytes);
+    let assets = assets_to_code(asset_dir, &path, embed, log);
 
-    quote::quote! {
-        &[
-            #(memory_serve::Asset {
-                route: #route,
-                path: #path,
-                content_type: #content_type,
-                etag: #etag,
-                bytes: #bytes,
-                brotli_bytes: #brotli_bytes,
-            }),*
-        ]
-    }
-    .into()
+    assets.parse().expect("Could not parse assets to code")
 }
