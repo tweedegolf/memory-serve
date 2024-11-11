@@ -14,4 +14,4 @@ proc-macro = true
 force-embed = []
 
 [dependencies]
-memory-serve-core = { path = "../memory-serve-core" }
+memory-serve-core.workspace = true

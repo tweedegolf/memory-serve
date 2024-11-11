@@ -11,8 +11,8 @@ publish.workspace = true
 force-embed = ["memory-serve-macros/force-embed"]
 
 [dependencies]
-memory-serve-core = { path = "../memory-serve-core" }
-memory-serve-macros = { path = "../memory-serve-macros" }
+memory-serve-core.workspace = true
+memory-serve-macros.workspace = true
 brotli = "7.0"
 flate2 = "1.0"
 axum = { version = "0.7", default-features = false }
@@ -20,7 +20,7 @@ tracing = "0.1"
 sha256 = "1.4"
 
 [build-dependencies]
-memory-serve-core = { path = "../memory-serve-core" }
+memory-serve-core.workspace = true
 
 [dev-dependencies]
 tokio = { version = "1", features = ["full"] }
