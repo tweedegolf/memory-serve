@@ -34,7 +34,7 @@ pub fn load_assets(input: TokenStream) -> TokenStream {
 
     let embed = !cfg!(debug_assertions) || cfg!(feature = "force-embed");
 
-    let assets = assets_to_code(asset_dir, &path, embed, log);
+    let assets = assets_to_code(asset_dir, &path, None, embed, log);
 
     assets.parse().expect("Could not parse assets to code")
 }

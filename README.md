@@ -35,7 +35,7 @@ memory-serve is designed to work with [axum](https://github.com/tokio-rs/axum)
 
 There are two mechanisms to include assets at compile time.
 
-1. Specify the path using a enviroment variable `ASSET_PATH` and call: `MemoryServe::from_env()` (best-practice)
+1. Specify the path using a enviroment variable `ASSET_DIR` and call: `MemoryServe::from_env()` (best-practice)
 2. Call the `load_assets!` macro, and pass this to the constructor: `MemoryServe::new(load_assets!("/foo/bar"))`
 
 The environment variable is handled by a build script and instructs cargo to re-evaluate when an asset in the directory changes.
@@ -51,8 +51,8 @@ calling [`Router::into_make_service()`](https://docs.rs/axum/latest/axum/routing
 
 ### Named directories
 
-Multiple directories can be included using different environment variables, all prefixed by `ASSET_PATH_`.
-For example: if you specify `ASSET_PATH_FOO` and `ASSET_PATH_BAR` the memory serve instances can be loaded
+Multiple directories can be included using different environment variables, all prefixed by `ASSET_DIR_`.
+For example: if you specify `ASSET_DIR_FOO` and `ASSET_DIR_BAR` the memory serve instances can be loaded
 using `MemoryServe::from_env_name("FOO")` and `MemoryServe::from_env_name("BAR")` respectively.
 
 ### Features
@@ -61,7 +61,7 @@ Use the `force-embed` feature flag to always include assets in the binary - also
 
 ### Environment variables
 
-Use `MEMORY_SERVE_ROOT` to specify a root directory for relative paths provided to the `load_assets!` macro (or th `ASSET_PATH` variable).
+Use `MEMORY_SERVE_ROOT` to specify a root directory for relative paths provided to the `load_assets!` macro (or th `ASSET_DIR` variable).
 
 Uee `MEMORY_SERVE_QUIET=1` to not print log messages at compile time.
 
