@@ -15,7 +15,7 @@ memory-serve-core.workspace = true
 memory-serve-macros.workspace = true
 brotli = "7.0"
 flate2 = "1.0"
-axum = { version = "0.7", default-features = false }
+axum = { version = "0.8", default-features = false }
 tracing = "0.1"
 sha256 = "1.4"
 
@@ -25,4 +25,4 @@ memory-serve-core.workspace = true
 [dev-dependencies]
 tokio = { version = "1", features = ["full"] }
 tower = { version = "0.5", features = ["util"] }
-axum = { version = "0.7" }
+axum = { version = "0.8" }

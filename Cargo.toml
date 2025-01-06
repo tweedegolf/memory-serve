@@ -4,7 +4,7 @@ exclude = ["example"]
 resolver = "2"
 
 [workspace.package]
-version = "1.0.0-beta.1"
+version = "1.0.0-beta.2"
 edition = "2021"
 license = "Apache-2.0 OR MIT"
 repository = "https://github.com/tweedegolf/memory-serve"
@@ -12,5 +12,5 @@ description = "Fast static file serving for axum web applications"
 publish = true
 
 [workspace.dependencies]
-memory-serve-core = { path = "./memory-serve-core", version = "1.0.0-beta.1" }
-memory-serve-macros = { path = "./memory-serve-macros", version = "1.0.0-beta.1" }
+memory-serve-core = { path = "./memory-serve-core", version = "1.0.0-beta.2" }
+memory-serve-macros = { path = "./memory-serve-macros", version = "1.0.0-beta.2" }
