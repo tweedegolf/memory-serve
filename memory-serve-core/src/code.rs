@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{env, path::Path};
 
 use crate::{asset::Asset, list::list_assets};
 
@@ -32,7 +32,7 @@ pub fn assets_to_code(
             compressed_bytes,
         } = asset;
 
-        let mut is_compressed = compressed_bytes.is_some();
+        let is_compressed = compressed_bytes.is_some();
 
         let bytes = if !embed {
             "None".to_string()
@@ -44,7 +44,11 @@ pub fn assets_to_code(
 
                 format!("Some(include_bytes!(r\"{}\"))", file_path.to_string_lossy())
             } else {
-                is_compressed = false;
+                let tmp_dir = env::temp_dir();
+                let file_path = Path::new(&tmp_dir).join(&etag);
+                std::fs::write(&file_path, compressed_bytes)
+                    .expect("Unable to write file to out dir.");
+
                 format!("Some(include_bytes!(r\"{}\"))", path.to_string_lossy())
             }
         } else {
