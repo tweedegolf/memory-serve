@@ -47,7 +47,7 @@ struct AssetResponse<'t, B> {
     gzip_bytes_len: usize,
 }
 
-impl<'t, B: IntoResponse> AssetResponse<'t, B> {
+impl<B: IntoResponse> AssetResponse<'_, B> {
     fn into_response(self) -> Response {
         let content_type = self.asset.content_type();
         let cache_control = self.asset.cache_control(self.options);

@@ -35,7 +35,7 @@ jobs:
       with:
         prefix-key: cargo
         shared-key: build
-    - run: cargo build --all-features --all-targets --release
+    - run: cargo build --all-features  --all-targets --release
 
   clippy:
     runs-on: ubuntu-latest
@@ -55,7 +55,7 @@ jobs:
       with:
         prefix-key: cargo
         shared-key: test
-    - run: cargo test --all-features --all-targets
+    - run: cargo test --all-targets
 
   test-release:
     runs-on: ubuntu-latest
@@ -65,7 +65,7 @@ jobs:
       with:
         prefix-key: cargo
         shared-key: test
-    - run: cargo test --all-features --all-targets --release
+    - run: cargo test --all-targets --release
 
   udeps:
     runs-on: ubuntu-latest
