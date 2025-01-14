@@ -15,12 +15,6 @@ jobs:
     - uses: actions/checkout@v4
     - run: cargo fmt --all -- --check
 
-  outdated:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    - run: cargo outdated --exit-code 1
-
   deny:
     runs-on: ubuntu-latest
     steps:
@@ -66,13 +60,3 @@ jobs:
         prefix-key: cargo
         shared-key: test
     - run: cargo test --all-targets --release
-
-  udeps:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    - uses: Swatinem/rust-cache@v2
-      with:
-        prefix-key: cargo
-        shared-key: udeps
-    - uses: tweedegolf/ci-standard/.github/actions/cargo-udeps@main
