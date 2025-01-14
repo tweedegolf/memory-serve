@@ -37,20 +37,17 @@ pub fn assets_to_code(
         let bytes = if !embed {
             "None".to_string()
         } else if let Some(compressed_bytes) = &compressed_bytes {
-            if let Some(out_dir) = out_dir {
-                let file_path = Path::new(&out_dir).join(&etag);
-                std::fs::write(&file_path, compressed_bytes)
-                    .expect("Unable to write file to out dir.");
-
-                format!("Some(include_bytes!(r\"{}\"))", file_path.to_string_lossy())
+            let file_path = if let Some(out_dir) = out_dir {
+                Path::new(&out_dir).join(&etag)
             } else {
                 let tmp_dir = env::temp_dir();
-                let file_path = Path::new(&tmp_dir).join(&etag);
-                std::fs::write(&file_path, compressed_bytes)
-                    .expect("Unable to write file to out dir.");
 
-                format!("Some(include_bytes!(r\"{}\"))", file_path.to_string_lossy())
-            }
+                Path::new(&tmp_dir).join(&etag)
+            };
+
+            std::fs::write(&file_path, compressed_bytes).expect("Unable to write file to out dir.");
+
+            format!("Some(include_bytes!(r\"{}\"))", file_path.to_string_lossy())
         } else {
             format!("Some(include_bytes!(r\"{}\"))", path.to_string_lossy())
         };
