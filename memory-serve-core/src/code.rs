@@ -49,7 +49,7 @@ pub fn assets_to_code(
                 std::fs::write(&file_path, compressed_bytes)
                     .expect("Unable to write file to out dir.");
 
-                format!("Some(include_bytes!(r\"{}\"))", path.to_string_lossy())
+                format!("Some(include_bytes!(r\"{}\"))", file_path.to_string_lossy())
             }
         } else {
             format!("Some(include_bytes!(r\"{}\"))", path.to_string_lossy())

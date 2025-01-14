@@ -50,7 +50,7 @@ fn main() {
         }
     }
 
-    // deternmine wheter to dynamically load assets or embed them in the binary
+    // determine whether to dynamically load assets or embed them in the binary
     let force_embed = std::env::var("CARGO_FEATURE_FORCE_EMBED").unwrap_or_default();
     let embed = !cfg!(debug_assertions) || force_embed == "1";
 
