@@ -9,7 +9,7 @@ use memory_serve_core::COMPRESS_TYPES;
 use tracing::debug;
 
 use crate::{
-    util::{compress_brotli, compress_gzip, content_length, supports_encoding},
+    util::{compress_brotli, compress_gzip, content_length, decompress_brotli, supports_encoding},
     ServeOptions,
 };
 
@@ -123,6 +123,32 @@ impl Asset {
 
     fn content_type(&self) -> (HeaderName, HeaderValue) {
         (CONTENT_TYPE, HeaderValue::from_static(self.content_type))
+    }
+
+    /// Get the bytes for the asset, which is possibly compressed in the binary
+    pub(crate) fn leak_bytes(
+        &self,
+        options: &'static ServeOptions,
+    ) -> (&'static [u8], &'static [u8], &'static [u8]) {
+        let mut uncompressed = self.bytes.unwrap_or_default();
+
+        if self.is_compressed {
+            uncompressed = Box::new(decompress_brotli(uncompressed).unwrap_or_default()).leak()
+        }
+
+        let gzip_bytes = if self.is_compressed && options.enable_gzip {
+            Box::new(compress_gzip(uncompressed).unwrap_or_default()).leak()
+        } else {
+            Default::default()
+        };
+
+        let brotli_bytes = if self.is_compressed {
+            self.bytes.unwrap_or_default()
+        } else {
+            Default::default()
+        };
+
+        (uncompressed, brotli_bytes, gzip_bytes)
     }
 
     fn dynamic_handler(

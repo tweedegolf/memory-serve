@@ -12,8 +12,6 @@ mod util;
 #[allow(unused)]
 use crate as memory_serve;
 
-use crate::util::{compress_gzip, decompress_brotli};
-
 pub use crate::{asset::Asset, cache_control::CacheControl};
 pub use memory_serve_macros::load_assets;
 
@@ -201,34 +199,18 @@ impl MemoryServe {
         let options = Box::leak(Box::new(self.options));
 
         for asset in self.assets {
-            let mut bytes = asset.bytes.unwrap_or_default();
+            let (uncompressed_bytes, brotli_bytes, gzip_bytes) = asset.leak_bytes(options);
 
-            if asset.is_compressed {
-                bytes = Box::new(decompress_brotli(bytes).unwrap_or_default()).leak()
-            }
-
-            let gzip_bytes = if asset.is_compressed && options.enable_gzip {
-                Box::new(compress_gzip(bytes).unwrap_or_default()).leak()
-            } else {
-                Default::default()
-            };
-
-            let brotli_bytes = if asset.is_compressed {
-                asset.bytes.unwrap_or_default()
-            } else {
-                Default::default()
-            };
-
-            if !bytes.is_empty() {
+            if !uncompressed_bytes.is_empty() {
                 if asset.is_compressed {
                     info!(
                         "serving {} {} -> {} bytes (compressed)",
                         asset.route,
-                        bytes.len(),
+                        uncompressed_bytes.len(),
                         brotli_bytes.len()
                     );
                 } else {
-                    info!("serving {} {} bytes", asset.route, bytes.len());
+                    info!("serving {} {} bytes", asset.route, uncompressed_bytes.len());
                 }
             } else {
                 info!("serving {} (dynamically)", asset.route);
@@ -238,7 +220,7 @@ impl MemoryServe {
                 ready(asset.handler(
                     &headers,
                     StatusCode::OK,
-                    bytes,
+                    uncompressed_bytes,
                     brotli_bytes,
                     gzip_bytes,
                     options,
@@ -252,7 +234,7 @@ impl MemoryServe {
                     ready(asset.handler(
                         &headers,
                         options.fallback_status,
-                        bytes,
+                        uncompressed_bytes,
                         brotli_bytes,
                         gzip_bytes,
                         options,
@@ -283,7 +265,7 @@ impl MemoryServe {
             // add all aliases that point to the asset route
             for (from, to) in self.aliases.iter() {
                 if *to == asset.route {
-                    info!("serving {} as index on {}", asset.route, from);
+                    info!("serving {} on alias {}", asset.route, from);
 
                     router = router.route(from, get(handler));
                 }
