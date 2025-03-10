@@ -80,6 +80,9 @@ mod test {
             "/assets/stars:wow !@%^&*()ama{zi}ng💩! * ' ( ) ; : @ & = + $ , ? % [ ] \\.svg",
         );
 
-        assert_eq!(path_to_route(base, path), "/assets/stars:wow%20!@%%5E&*()ama%7Bzi%7Dng%F0%9F%92%A9!%20*%20'%20(%20)%20;%20:%20@%20&%20=%20+%20$%20,%20?%20%%20[%20]%20\\.svg");
+        assert_eq!(
+            path_to_route(base, path),
+            "/assets/stars:wow%20!@%%5E&*()ama%7Bzi%7Dng%F0%9F%92%A9!%20*%20'%20(%20)%20;%20:%20@%20&%20=%20+%20$%20,%20?%20%%20[%20]%20\\.svg"
+        );
     }
 }

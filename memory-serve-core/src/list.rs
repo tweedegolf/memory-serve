@@ -3,9 +3,9 @@ use std::path::Path;
 use walkdir::WalkDir;
 
 use crate::{
+    COMPRESS_TYPES,
     asset::Asset,
     util::{compress_brotli, path_to_content_type, path_to_route},
-    COMPRESS_TYPES,
 };
 
 /// List all assets in the given directory (recursively) and return a list of assets with metadata

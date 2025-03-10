@@ -1,7 +1,7 @@
 use axum::{
     http::{
-        header::{CONTENT_ENCODING, CONTENT_TYPE, ETAG, IF_NONE_MATCH},
         HeaderMap, HeaderName, HeaderValue, StatusCode,
+        header::{CONTENT_ENCODING, CONTENT_TYPE, ETAG, IF_NONE_MATCH},
     },
     response::{IntoResponse, Response},
 };
@@ -9,8 +9,8 @@ use memory_serve_core::COMPRESS_TYPES;
 use tracing::debug;
 
 use crate::{
-    util::{compress_brotli, compress_gzip, content_length, decompress_brotli, supports_encoding},
     ServeOptions,
+    util::{compress_brotli, compress_gzip, content_length, decompress_brotli, supports_encoding},
 };
 
 const BROTLI_ENCODING: &str = "br";

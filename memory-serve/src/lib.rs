@@ -280,13 +280,12 @@ impl MemoryServe {
 mod tests {
     use crate::{self as memory_serve, Asset, CacheControl, MemoryServe};
     use axum::{
+        Router,
         body::Body,
         http::{
-            self,
+            self, HeaderMap, HeaderName, HeaderValue, Request, StatusCode,
             header::{self, CACHE_CONTROL, CONTENT_ENCODING, CONTENT_LENGTH},
-            HeaderMap, HeaderName, HeaderValue, Request, StatusCode,
         },
-        Router,
     };
     use memory_serve_macros::load_assets;
     use tower::ServiceExt;

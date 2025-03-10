@@ -1,8 +1,8 @@
 use std::io::Write;
 
 use axum::http::{
-    header::{ACCEPT_ENCODING, CONTENT_LENGTH},
     HeaderMap, HeaderName, HeaderValue,
+    header::{ACCEPT_ENCODING, CONTENT_LENGTH},
 };
 
 /// Decompress a byte slice using brotli
@@ -62,7 +62,7 @@ pub(crate) fn content_length(len: usize) -> (HeaderName, HeaderValue) {
 #[cfg(test)]
 mod tests {
     use super::supports_encoding;
-    use axum::http::{header::ACCEPT_ENCODING, HeaderMap, HeaderValue};
+    use axum::http::{HeaderMap, HeaderValue, header::ACCEPT_ENCODING};
 
     fn check(header: &str, encoding: &str) -> bool {
         let mut headers = HeaderMap::new();

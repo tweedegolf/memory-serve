@@ -1,4 +1,4 @@
-use axum::http::{header::CACHE_CONTROL, HeaderName, HeaderValue};
+use axum::http::{HeaderName, HeaderValue, header::CACHE_CONTROL};
 
 /// Options to choose from to configure the Cache-Control header for served files.
 /// See [Cache control](index.html#cache-control)

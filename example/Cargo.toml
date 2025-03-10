@@ -1,6 +1,6 @@
 [package]
 name = "memory-serve-test"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 memory-serve = { path = "../memory-serve" }

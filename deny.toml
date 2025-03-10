@@ -1,4 +1,7 @@
 [licenses]
-allow-osi-fsf-free = "either"
-copyleft = "deny"
-private = { ignore = true }
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Unicode-3.0",
+    "BSD-3-Clause"
+]
