@@ -12,5 +12,15 @@ description = "Fast static file serving for axum web applications"
 publish = true
 
 [workspace.dependencies]
+axum = { version = "0.8", default-features = false }
+brotli = "7.0"
+flate2 = "1.0"
+mime_guess = "2.0"
 memory-serve-core = { path = "./memory-serve-core", version = "1.1.0" }
 memory-serve-macros = { path = "./memory-serve-macros", version = "1.1.0" }
+sha256 = "1.4"
+tracing = "0.1"
+urlencoding = "2.1"
+walkdir = "2"
+tokio = { version = "1", features = ["full"] }
+tower = { version = "0.5", features = ["util"] }
