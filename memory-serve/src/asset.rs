@@ -55,10 +55,11 @@ impl<B: IntoResponse> AssetResponse<'_, B> {
 
         if let Some(if_none_match) = self.headers.get(IF_NONE_MATCH) {
             if if_none_match == self.etag {
-                return (
-                    StatusCode::NOT_MODIFIED,
-                    [content_type, cache_control, etag_header],
-                )
+                return (StatusCode::NOT_MODIFIED, [
+                    content_type,
+                    cache_control,
+                    etag_header,
+                ])
                     .into_response();
             }
         }

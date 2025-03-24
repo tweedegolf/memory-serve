@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 
 const ENV_NAME: &str = "ASSET_DIR";
 
+/// Try to resolve the (relative) asset directory path
 fn resolve_asset_dir(out_dir: &Path, key: &str, asset_dir: &str) -> PathBuf {
     let path = Path::new(&asset_dir);
 
@@ -38,13 +39,12 @@ fn resolve_asset_dir(out_dir: &Path, key: &str, asset_dir: &str) -> PathBuf {
     path
 }
 
+/// Generate the asset file when a ASSET_DIR environment variable is provided
 fn main() {
     let out_dir: String = std::env::var("OUT_DIR").expect("OUT_DIR environment variable not set.");
     let out_dir = PathBuf::from(&out_dir);
 
-    // determine whether to dynamically load assets or embed them in the binary
-    let force_embed = std::env::var("CARGO_FEATURE_FORCE_EMBED").unwrap_or_default();
-    let embed = !cfg!(debug_assertions) || force_embed == "1";
+    println!("cargo::rerun-if-env-changed=ASSET_DIR");
 
     let named_paths: Vec<(String, PathBuf)> = std::env::vars()
         .filter(|(key, _)| key.starts_with(ENV_NAME))
@@ -57,6 +57,11 @@ fn main() {
             (name.to_string(), path)
         })
         .collect();
+
+    // determine whether to dynamically load assets or embed them in the binary
+    let force_embed = std::env::var("CARGO_FEATURE_FORCE_EMBED").unwrap_or_default();
+    println!("cargo::rerun-if-env-changed=CARGO_FEATURE_FORCE_EMBED");
+    let embed = !cfg!(debug_assertions) || force_embed == "1";
 
     load_names_directories(named_paths, embed);
 }

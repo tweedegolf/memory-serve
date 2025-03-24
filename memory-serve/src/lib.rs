@@ -13,7 +13,42 @@ mod util;
 use crate as memory_serve;
 
 pub use crate::{asset::Asset, cache_control::CacheControl};
+pub use memory_serve_core::{load_directory, load_directory_with_embed, load_names_directories};
 pub use memory_serve_macros::load_assets;
+
+#[macro_export]
+macro_rules! from_local_build {
+    () => {{
+        use memory_serve::{Asset, MemoryServe};
+
+        let assets: &[(&str, &[Asset])] =
+            include!(concat!(env!("OUT_DIR"), "/memory_serve_assets.rs"));
+
+        if assets.is_empty() {
+            panic!("No assets found, did you call a load_directory* function from your build.rs?");
+        }
+
+        MemoryServe::new(assets[0].1)
+    }};
+    ($title:expr) => {{
+        use memory_serve::{Asset, MemoryServe};
+
+        let assets: &[(&str, &[Asset])] =
+            include!(concat!(env!("OUT_DIR"), "/memory_serve_assets.rs"));
+
+        let assets = assets
+            .iter()
+            .find(|(n, _)| n == $title)
+            .map(|(_, a)| *a)
+            .unwrap_or_default();
+
+        if assets.is_empty() {
+            panic!("No assets found, did you call a load_directory* function from your build.rs?");
+        }
+
+        MemoryServe::new(assets)
+    }};
+}
 
 #[derive(Debug, Clone, Copy)]
 struct ServeOptions {
@@ -322,45 +357,36 @@ mod tests {
         let content_types: Vec<&str> = assets.iter().map(|a| a.content_type).collect();
         let etags: Vec<&str> = assets.iter().map(|a| a.etag).collect();
 
-        assert_eq!(
-            routes,
-            [
-                "/about.html",
-                "/assets/icon.jpg",
-                "/assets/index.css",
-                "/assets/index.js",
-                "/assets/stars.svg",
-                "/blog/index.html",
-                "/index.html"
-            ]
-        );
-        assert_eq!(
-            content_types,
-            [
-                "text/html",
-                "image/jpeg",
-                "text/css",
-                "text/javascript",
-                "image/svg+xml",
-                "text/html",
-                "text/html"
-            ]
-        );
+        assert_eq!(routes, [
+            "/about.html",
+            "/assets/icon.jpg",
+            "/assets/index.css",
+            "/assets/index.js",
+            "/assets/stars.svg",
+            "/blog/index.html",
+            "/index.html"
+        ]);
+        assert_eq!(content_types, [
+            "text/html",
+            "image/jpeg",
+            "text/css",
+            "text/javascript",
+            "image/svg+xml",
+            "text/html",
+            "text/html"
+        ]);
         if cfg!(debug_assertions) && !cfg!(feature = "force-embed") {
             assert_eq!(etags, ["", "", "", "", "", "", ""]);
         } else {
-            assert_eq!(
-                etags,
-                [
-                    "56a0dcb83ec56b6c967966a1c06c7b1392e261069d0844aa4e910ca5c1e8cf58",
-                    "e64f4683bf82d854df40b7246666f6f0816666ad8cd886a8e159535896eb03d6",
-                    "ec4edeea111c854901385011f403e1259e3f1ba016dcceabb6d566316be3677b",
-                    "86a7fdfd19700843e5f7344a63d27e0b729c2554c8572903ceee71f5658d2ecf",
-                    "bd9dccc152de48cb7bedc35b9748ceeade492f6f904710f9c5d480bd6299cc7d",
-                    "89e9873a8e49f962fe83ad2bfe6ac9b21ef7c1b4040b99c34eb783dccbadebc5",
-                    "0639dc8aac157b58c74f65bbb026b2fd42bc81d9a0a64141df456fa23c214537"
-                ]
-            );
+            assert_eq!(etags, [
+                "56a0dcb83ec56b6c967966a1c06c7b1392e261069d0844aa4e910ca5c1e8cf58",
+                "e64f4683bf82d854df40b7246666f6f0816666ad8cd886a8e159535896eb03d6",
+                "ec4edeea111c854901385011f403e1259e3f1ba016dcceabb6d566316be3677b",
+                "86a7fdfd19700843e5f7344a63d27e0b729c2554c8572903ceee71f5658d2ecf",
+                "bd9dccc152de48cb7bedc35b9748ceeade492f6f904710f9c5d480bd6299cc7d",
+                "89e9873a8e49f962fe83ad2bfe6ac9b21ef7c1b4040b99c34eb783dccbadebc5",
+                "0639dc8aac157b58c74f65bbb026b2fd42bc81d9a0a64141df456fa23c214537"
+            ]);
         }
     }
 

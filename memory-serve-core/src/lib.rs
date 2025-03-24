@@ -27,6 +27,7 @@ const QUIET_ENV_NAME: &str = "MEMORY_SERVE_QUIET";
 pub fn load_directory<P: Into<PathBuf>>(path: P) {
     // determine whether to dynamically load assets or embed them in the binary
     let force_embed = std::env::var("CARGO_FEATURE_FORCE_EMBED").unwrap_or_default();
+    println!("cargo::rerun-if-env-changed=CARGO_FEATURE_FORCE_EMBED");
     let embed = !cfg!(debug_assertions) || force_embed == "1";
 
     load_directory_with_embed(path, embed);
@@ -39,9 +40,8 @@ pub fn load_directory_with_embed<P: Into<PathBuf>>(path: P, embed: bool) {
 pub fn load_names_directories<N, P>(named_paths: impl IntoIterator<Item = (N, P)>, embed: bool)
 where
     N: Into<String>,
-    P: Into<PathBuf>
+    P: Into<PathBuf>,
 {
-
     let out_dir: String = std::env::var("OUT_DIR").expect("OUT_DIR environment variable not set.");
     let out_dir = PathBuf::from(&out_dir);
 
@@ -55,9 +55,18 @@ where
     let mut code = "&[".to_string();
 
     for (name, asset_dir) in named_paths {
-        let asset_dir = asset_dir.into();
+        let asset_dir = asset_dir
+            .into()
+            .canonicalize()
+            .expect("Could not canonicalize the provided path");
         let asset_dir_label = asset_dir.to_string_lossy();
-        let assets = assets_to_code(&asset_dir_label, &asset_dir, Some(out_dir.as_path()), embed, log);
+        let assets = assets_to_code(
+            &asset_dir_label,
+            &asset_dir,
+            Some(out_dir.as_path()),
+            embed,
+            log,
+        );
 
         println!("cargo::rerun-if-changed={asset_dir_label}");
 
@@ -66,7 +75,6 @@ where
 
     code.push(']');
 
-    println!("cargo::rerun-if-env-changed=CARGO_FEATURE_FORCE_EMBED");
     println!("cargo::rerun-if-env-changed={QUIET_ENV_NAME}");
 
     let target = out_dir.join(ASSET_FILE);
