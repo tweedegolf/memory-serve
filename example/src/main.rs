@@ -1,7 +1,7 @@
-use axum::{Router, response::Html, routing::get};
+use axum::{response::Html, routing::get, Router};
 use memory_serve::{MemoryServe, load_assets};
 use std::net::SocketAddr;
-use tracing::{Level, info};
+use tracing::{info, Level};
 
 #[tokio::main]
 async fn main() {

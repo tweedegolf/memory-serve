@@ -1,15 +1,12 @@
-use memory_serve_core::assets_to_code;
+use memory_serve_core::{ENV_NAME, FORCE_EMBED_FEATURE, ROOT_ENV_NAME, load_names_directories};
 use std::path::{Path, PathBuf};
 
-const ASSET_FILE: &str = "memory_serve_assets.rs";
-const ENV_NAME: &str = "ASSET_DIR";
-const QUIET_ENV_NAME: &str = "MEMORY_SERVE_QUIET";
-
+/// Try to resolve the (relative) asset directory path
 fn resolve_asset_dir(out_dir: &Path, key: &str, asset_dir: &str) -> PathBuf {
     let path = Path::new(&asset_dir);
 
     let path: PathBuf = if path.is_relative() {
-        if let Ok(root_dir) = std::env::var("MEMORY_SERVE_ROOT") {
+        if let Ok(root_dir) = std::env::var(ROOT_ENV_NAME) {
             let root_dir = Path::new(&root_dir);
             root_dir.join(path)
         } else {
@@ -40,42 +37,29 @@ fn resolve_asset_dir(out_dir: &Path, key: &str, asset_dir: &str) -> PathBuf {
     path
 }
 
+/// Generate the asset file when a ASSET_DIR environment variable is provided
 fn main() {
     let out_dir: String = std::env::var("OUT_DIR").expect("OUT_DIR environment variable not set.");
     let out_dir = PathBuf::from(&out_dir);
 
-    fn log(msg: &str) {
-        if std::env::var(QUIET_ENV_NAME) != Ok("1".to_string()) {
-            println!("cargo:warning={}", msg);
-        }
-    }
+    println!("cargo::rerun-if-env-changed={ENV_NAME}");
 
-    // determine whether to dynamically load assets or embed them in the binary
-    let force_embed = std::env::var("CARGO_FEATURE_FORCE_EMBED").unwrap_or_default();
-    let embed = !cfg!(debug_assertions) || force_embed == "1";
+    let named_paths: Vec<(String, PathBuf)> = std::env::vars()
+        .filter(|(key, _)| key.starts_with(ENV_NAME))
+        .map(|(key, asset_dir)| {
+            println!("cargo::rerun-if-env-changed={key}");
 
-    // using a string is faster than using quote ;)
-    let mut code = "&[".to_string();
-
-    for (key, asset_dir) in std::env::vars() {
-        if key.starts_with(ENV_NAME) {
             let name = key.trim_start_matches(format!("{ENV_NAME}_").as_str());
             let path = resolve_asset_dir(&out_dir, &key, &asset_dir);
 
-            let assets = assets_to_code(&asset_dir, &path, Some(out_dir.as_path()), embed, log);
+            (name.to_string(), path)
+        })
+        .collect();
 
-            println!("cargo::rerun-if-changed={asset_dir}");
+    // determine whether to dynamically load assets or embed them in the binary
+    let force_embed = std::env::var(FORCE_EMBED_FEATURE).unwrap_or_default();
+    println!("cargo::rerun-if-env-changed={FORCE_EMBED_FEATURE}");
+    let embed = !cfg!(debug_assertions) || force_embed == "1";
 
-            code = format!("{code}(\"{name}\", {assets}),");
-        }
-    }
-
-    code.push(']');
-
-    println!("cargo::rerun-if-env-changed=CARGO_FEATURE_FORCE_EMBED");
-    println!("cargo::rerun-if-env-changed={ENV_NAME}");
-    println!("cargo::rerun-if-env-changed={QUIET_ENV_NAME}");
-
-    let target = out_dir.join(ASSET_FILE);
-    std::fs::write(target, code).expect("Unable to write memory-serve asset file.");
+    load_names_directories(named_paths, embed);
 }

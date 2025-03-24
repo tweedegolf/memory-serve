@@ -13,7 +13,44 @@ mod util;
 use crate as memory_serve;
 
 pub use crate::{asset::Asset, cache_control::CacheControl};
+pub use memory_serve_core::{
+    ENV_NAME, load_directory, load_directory_with_embed, load_names_directories,
+};
 pub use memory_serve_macros::load_assets;
+
+#[macro_export]
+macro_rules! from_local_build {
+    () => {{
+        use memory_serve::{Asset, MemoryServe};
+
+        let assets: &[(&str, &[Asset])] =
+            include!(concat!(env!("OUT_DIR"), "/memory_serve_assets.rs"));
+
+        if assets.is_empty() {
+            panic!("No assets found, did you call a load_directory* function from your build.rs?");
+        }
+
+        MemoryServe::new(assets[0].1)
+    }};
+    ($title:expr) => {{
+        use memory_serve::{Asset, MemoryServe};
+
+        let assets: &[(&str, &[Asset])] =
+            include!(concat!(env!("OUT_DIR"), "/memory_serve_assets.rs"));
+
+        let assets = assets
+            .iter()
+            .find(|(n, _)| n == $title)
+            .map(|(_, a)| *a)
+            .unwrap_or_default();
+
+        if assets.is_empty() {
+            panic!("No assets found, did you call a load_directory* function from your build.rs?");
+        }
+
+        MemoryServe::new(assets)
+    }};
+}
 
 #[derive(Debug, Clone, Copy)]
 struct ServeOptions {
@@ -72,7 +109,7 @@ impl MemoryServe {
             include!(concat!(env!("OUT_DIR"), "/memory_serve_assets.rs"));
 
         if assets.is_empty() {
-            panic!("No assets found, did you forget to set the ASSET_DIR environment variable?");
+            panic!("No assets found, did you forget to set the {ENV_NAME} environment variable?");
         }
 
         Self::new(assets[0].1)
@@ -95,7 +132,7 @@ impl MemoryServe {
 
         if assets.is_empty() {
             panic!(
-                "No assets found, did you forget to set the ASSET_DIR_{name} environment variable?"
+                "No assets found, did you forget to set the {ENV_NAME}_{name} environment variable?"
             );
         }
 

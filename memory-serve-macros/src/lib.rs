@@ -1,4 +1,4 @@
-use memory_serve_core::assets_to_code;
+use memory_serve_core::{QUIET_ENV_NAME, ROOT_ENV_NAME, assets_to_code};
 use proc_macro::TokenStream;
 use std::{env, path::Path};
 
@@ -9,13 +9,13 @@ pub fn load_assets(input: TokenStream) -> TokenStream {
     let mut path = Path::new(&asset_dir).to_path_buf();
 
     fn log(msg: &str) {
-        if std::env::var("MEMORY_SERVE_QUIET") != Ok("1".to_string()) {
+        if std::env::var(QUIET_ENV_NAME) != Ok("1".to_string()) {
             println!("  memory_serve: {msg}");
         }
     }
 
     if path.is_relative() {
-        if let Ok(root_dir) = env::var("MEMORY_SERVE_ROOT") {
+        if let Ok(root_dir) = env::var(ROOT_ENV_NAME) {
             path = Path::new(&root_dir).join(path);
         } else if let Ok(crate_dir) = env::var("CARGO_MANIFEST_DIR") {
             path = Path::new(&crate_dir).join(path);

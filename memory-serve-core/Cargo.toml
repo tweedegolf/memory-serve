@@ -8,8 +8,8 @@ repository.workspace = true
 publish.workspace = true
 
 [dependencies]
-sha256 = "1.4"
-brotli = "7.0"
-mime_guess = "2.0"
-walkdir = "2"
-urlencoding = "2.1"
+sha256.workspace = true
+brotli.workspace = true
+mime_guess.workspace = true
+walkdir.workspace = true
+urlencoding.workspace = true
