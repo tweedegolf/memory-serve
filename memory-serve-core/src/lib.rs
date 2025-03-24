@@ -21,20 +21,23 @@ pub const COMPRESS_TYPES: &[&str] = &[
     "application/wasm",
 ];
 
-const ASSET_FILE: &str = "memory_serve_assets.rs";
-const QUIET_ENV_NAME: &str = "MEMORY_SERVE_QUIET";
+pub const ENV_NAME: &str = "ASSET_DIR";
+pub const ASSET_FILE: &str = "memory_serve_assets.rs";
+pub const QUIET_ENV_NAME: &str = "MEMORY_SERVE_QUIET";
+pub const ROOT_ENV_NAME: &str = "MEMORY_SERVE_ROOT";
+pub const FORCE_EMBED_FEATURE: &str = "CARGO_FEATURE_FORCE_EMBED";
 
 pub fn load_directory<P: Into<PathBuf>>(path: P) {
     // determine whether to dynamically load assets or embed them in the binary
-    let force_embed = std::env::var("CARGO_FEATURE_FORCE_EMBED").unwrap_or_default();
-    println!("cargo::rerun-if-env-changed=CARGO_FEATURE_FORCE_EMBED");
+    let force_embed = std::env::var(FORCE_EMBED_FEATURE).unwrap_or_default();
+    println!("cargo::rerun-if-env-changed={FORCE_EMBED_FEATURE}");
     let embed = !cfg!(debug_assertions) || force_embed == "1";
 
     load_directory_with_embed(path, embed);
 }
 
 pub fn load_directory_with_embed<P: Into<PathBuf>>(path: P, embed: bool) {
-    load_names_directories(vec![("ASSET_DIR", path)], embed);
+    load_names_directories(vec![(ENV_NAME, path)], embed);
 }
 
 pub fn load_names_directories<N, P>(named_paths: impl IntoIterator<Item = (N, P)>, embed: bool)
