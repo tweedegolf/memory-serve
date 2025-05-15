@@ -13,7 +13,7 @@ publish = true
 
 [workspace.dependencies]
 axum = { version = "0.8" }
-brotli = "7.0"
+brotli = "8.0"
 flate2 = "1.0"
 mime_guess = "2.0"
 memory-serve-core = { path = "./memory-serve-core", version = "1.2.1" }
