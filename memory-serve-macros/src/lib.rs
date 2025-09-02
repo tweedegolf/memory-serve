@@ -10,7 +10,7 @@ pub fn load_assets(input: TokenStream) -> TokenStream {
 
     fn log(msg: &str) {
         if std::env::var(QUIET_ENV_NAME) != Ok("1".to_string()) {
-            println!("  memory_serve: {msg}");
+            eprintln!("  memory_serve: {msg}");
         }
     }
 
