@@ -62,8 +62,9 @@ pub fn list_assets(base_path: &Path, embed: bool, log: fn(&str)) -> Vec<Asset> {
 
             let etag: String = sha256::digest(&bytes);
             let original_size = bytes.len();
+
             let is_compress_type = COMPRESS_TYPES.contains(&content_type.as_str());
-            let brotli_bytes = if is_compress_type {
+            let brotli_bytes = if is_compress_type && !cfg!(debug_assertions) {
                 compress_brotli(&bytes)
             } else {
                 None
@@ -94,7 +95,7 @@ pub fn list_assets(base_path: &Path, embed: bool, log: fn(&str)) -> Vec<Asset> {
                     }
                     None => {
                         log(&format!(
-                            "including {route} {original_size} bytes (compression failed)"
+                            "including {route} {original_size} bytes (uncompressed)"
                         ));
                     }
                 }
