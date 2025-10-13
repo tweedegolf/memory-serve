@@ -38,17 +38,17 @@ macro_rules! from_local_build {
         let assets: &[(&str, &[Asset])] =
             include!(concat!(env!("OUT_DIR"), "/memory_serve_assets.rs"));
 
-        let assets = assets
-            .iter()
-            .find(|(n, _)| n == $title)
+        let selected_assets = assets
+            .into_iter()
+            .find(|(n, _)| *n == $title)
             .map(|(_, a)| *a)
             .unwrap_or_default();
 
-        if assets.is_empty() {
+        if selected_assets.is_empty() {
             panic!("No assets found, did you call a load_directory* function from your build.rs?");
         }
 
-        MemoryServe::new(assets)
+        MemoryServe::new(selected_assets)
     }};
 }
 

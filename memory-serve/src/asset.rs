@@ -53,14 +53,14 @@ impl<B: IntoResponse> AssetResponse<'_, B> {
         let cache_control = self.asset.cache_control(self.options);
         let etag_header = (ETAG, HeaderValue::from_str(self.etag).unwrap());
 
-        if let Some(if_none_match) = self.headers.get(IF_NONE_MATCH) {
-            if if_none_match == self.etag {
-                return (
-                    StatusCode::NOT_MODIFIED,
-                    [content_type, cache_control, etag_header],
-                )
-                    .into_response();
-            }
+        if let Some(if_none_match) = self.headers.get(IF_NONE_MATCH)
+            && if_none_match == self.etag
+        {
+            return (
+                StatusCode::NOT_MODIFIED,
+                [content_type, cache_control, etag_header],
+            )
+                .into_response();
         }
 
         if self.options.enable_brotli
