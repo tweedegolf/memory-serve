@@ -1,8 +1,7 @@
-use std::{io::Write, path::Path};
-
 use mime_guess::mime;
+use std::path::Path;
 
-const ALLOWED_CHARS: [(&str, &str); 20] = [
+const ALLOWED_CHARS: [(&str, &str); 19] = [
     ("%2F", "/"),
     ("%5C", "\\"),
     ("%21", "!"),
@@ -18,7 +17,6 @@ const ALLOWED_CHARS: [(&str, &str); 20] = [
     ("%2B", "+"),
     ("%24", "$"),
     ("%2C", ","),
-    ("%2F", "/"),
     ("%3F", "?"),
     ("%25", "%"),
     ("%5B", "["),
@@ -29,7 +27,7 @@ const ALLOWED_CHARS: [(&str, &str); 20] = [
 pub(crate) fn path_to_route(base: &Path, path: &Path) -> String {
     let relative_path = path
         .strip_prefix(base)
-        .expect("Could not strap prefix from path");
+        .expect("Could not strip prefix from path");
 
     let route = relative_path
         .components()
@@ -61,17 +59,9 @@ pub(crate) fn path_to_content_type(path: &Path) -> Option<String> {
     )
 }
 
-/// Compress a byte slice using brotli
-pub(crate) fn compress_brotli(input: &[u8]) -> Option<Vec<u8>> {
-    let mut writer = brotli::CompressorWriter::new(Vec::new(), 4096, 11, 22);
-    writer.write_all(input).ok()?;
-
-    Some(writer.into_inner())
-}
-
 #[cfg(test)]
 mod test {
-    use crate::util::path_to_route;
+    use super::path_to_route;
 
     #[test]
     fn test_path_to_route() {

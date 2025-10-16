@@ -11,7 +11,7 @@ headers and handles file compression.
 During development (debug builds) files are served dynamically,
 they are read and compressed at request time.
 
-Text-based files like HTML or javascript
+In release mode text-based files like HTML or javascript
 are compressed using [brotli](https://en.wikipedia.org/wiki/Brotli)
 at compile time and decompressed at startup, to minimize the binary size.
 
@@ -33,15 +33,10 @@ memory-serve is designed to work with [axum](https://github.com/tokio-rs/axum)
 
 ## Usage
 
-There are two mechanisms to include assets at compile time.
+Call `load_directory` with a relative path from your `build.rs`. See https://doc.rust-lang.org/cargo/reference/build-scripts.html for more information about build scripts. See the example project in the memory-serve repository
+for an example `build.rs`. Calling `load_directory` makes sure that your assets are loaded at compile time.
 
-1. Specify the path using a enviroment variable `ASSET_DIR` and call: `MemoryServe::from_env()` (best-practice)
-2. Call the `load_assets!` macro, and pass this to the constructor: `MemoryServe::new(load_assets!("/foo/bar"))`
-
-The environment variable is handled by a build script and instructs cargo to re-evaluate when an asset in the directory changes.
-The output of the macro might be cached between build.
-
-Both options try to be smart in resolving absolute and relative paths.
+Call the `load!` macro from your application to create a `MemoryServe` instance.
 
 When an instance of `MemoryServe` is created, we can bind these to your axum instance.
 Calling [`MemoryServe::into_router()`] on the `MemoryServe` instance produces an axum
@@ -51,30 +46,38 @@ calling [`Router::into_make_service()`](https://docs.rs/axum/latest/axum/routing
 
 ### Named directories
 
-Multiple directories can be included using different environment variables, all prefixed by `ASSET_DIR_`.
-For example: if you specify `ASSET_DIR_FOO` and `ASSET_DIR_BAR` the memory serve instances can be loaded
-using `MemoryServe::from_env_name("FOO")` and `MemoryServe::from_env_name("BAR")` respectively.
+Multiple directories can be included using `load_names_directories` from your `build.rs` script.
+This takes a list of tuples, with the name and the path of your asset directories.
+
+You can use the names as specified in the `load_names_directories` call to load the specifix
+MemoryService by passing the name as string to the `load!` macro.
 
 ### Features
 
 Use the `force-embed` feature flag to always include assets in the binary - also in debug builds.
+Note that this feature
 
 ### Environment variables
 
-Use `MEMORY_SERVE_ROOT` to specify a root directory for relative paths provided to the `load_assets!` macro (or th `ASSET_DIR` variable).
-
-Uee `MEMORY_SERVE_QUIET=1` to not print log messages at compile time.
+Use `MEMORY_SERVE_QUIET=1` to not print log messages at compile time.
 
 ## Example
 
-```rust,no_run
+`build.rs`:
+```rust
+fn main() {
+    memory_serve::load_directory("./public");
+}
+```
+
+`main./rs`:
+```rust
 use axum::{response::Html, routing::get, Router};
-use memory_serve::{MemoryServe, load_assets};
 use std::net::SocketAddr;
 
 #[tokio::main]
 async fn main() {
-    let memory_router = MemoryServe::new(load_assets!("../static"))
+    let memory_router = memory_serve::load!()
         .index_file(Some("/index.html"))
         .into_router();
 
@@ -111,10 +114,12 @@ See [`Cache control`](#cache-control) for the cache control options.
 ## Logging
 
 During compilation, problems that occur with the inclusion or compression
-of assets are logged to stdout, for instance:
+of assets are logged as a warning from the build script:
 
 ```txt
-WARN skipping file "static/empty.txt": file empty
+warning: memory-serve-test@0.0.0: Loading static assets from /home/user/project/my-project/static
+warning: memory-serve-test@0.0.0: Embedding assets into binary
+warning: memory-serve-test@0.0.0: including /blog/index.html 431 -> 175 bytes (compressed)
 ```
 
 When running the resulting executable, all registered routes and asset

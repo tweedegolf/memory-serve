@@ -1,3 +1,4 @@
+#![allow(clippy::needless_doctest_main)]
 #![doc = include_str!("../README.md")]
 use axum::{
     http::{HeaderMap, StatusCode},
@@ -5,138 +6,38 @@ use axum::{
 };
 use std::future::ready;
 use tracing::info;
+
 mod asset;
+mod build;
 mod cache_control;
+mod load;
+mod options;
 mod util;
 
-#[allow(unused)]
-use crate as memory_serve;
-
-pub use crate::{asset::Asset, cache_control::CacheControl};
-pub use memory_serve_core::{
-    ENV_NAME, load_directory, load_directory_with_embed, load_names_directories,
+pub use crate::{
+    asset::Asset,
+    build::{load_directory, load_directory_with_embed, load_names_directories},
+    cache_control::CacheControl,
 };
-pub use memory_serve_macros::load_assets;
-
-#[macro_export]
-macro_rules! from_local_build {
-    () => {{
-        use memory_serve::{Asset, MemoryServe};
-
-        let assets: &[(&str, &[Asset])] =
-            include!(concat!(env!("OUT_DIR"), "/memory_serve_assets.rs"));
-
-        if assets.is_empty() {
-            panic!("No assets found, did you call a load_directory* function from your build.rs?");
-        }
-
-        MemoryServe::new(assets[0].1)
-    }};
-    ($title:expr) => {{
-        use memory_serve::{Asset, MemoryServe};
-
-        let assets: &[(&str, &[Asset])] =
-            include!(concat!(env!("OUT_DIR"), "/memory_serve_assets.rs"));
-
-        let selected_assets = assets
-            .into_iter()
-            .find(|(n, _)| *n == $title)
-            .map(|(_, a)| *a)
-            .unwrap_or_default();
-
-        if selected_assets.is_empty() {
-            panic!("No assets found, did you call a load_directory* function from your build.rs?");
-        }
-
-        MemoryServe::new(selected_assets)
-    }};
-}
-
-#[derive(Debug, Clone, Copy)]
-struct ServeOptions {
-    index_file: Option<&'static str>,
-    index_on_subdirectories: bool,
-    fallback: Option<&'static str>,
-    fallback_status: StatusCode,
-    html_cache_control: CacheControl,
-    cache_control: CacheControl,
-    enable_brotli: bool,
-    enable_gzip: bool,
-    enable_clean_url: bool,
-}
-
-impl Default for ServeOptions {
-    fn default() -> Self {
-        Self {
-            index_file: Some("/index.html"),
-            index_on_subdirectories: false,
-            fallback: None,
-            fallback_status: StatusCode::NOT_FOUND,
-            html_cache_control: CacheControl::Short,
-            cache_control: CacheControl::Medium,
-            enable_brotli: !cfg!(debug_assertions),
-            enable_gzip: !cfg!(debug_assertions),
-            enable_clean_url: false,
-        }
-    }
-}
 
 /// Helper struct to create and configure an axum to serve static files from
 /// memory.
 #[derive(Debug, Default)]
 pub struct MemoryServe {
-    options: ServeOptions,
+    options: options::ServeOptions,
     assets: &'static [Asset],
     aliases: Vec<(&'static str, &'static str)>,
 }
 
 impl MemoryServe {
-    /// Initiate a `MemoryServe` instance, takes the output of `load_assets!`
-    /// as an argument. `load_assets!` takes a directory name relative from
-    /// the project root.
+    /// Initiate a `MemoryServe` instance, taking the output of the `load!`
+    /// macro as an argument. `load!` selects the assets prepared during the
+    /// build step.
     pub fn new(assets: &'static [Asset]) -> Self {
         Self {
             assets,
             ..Default::default()
         }
-    }
-
-    /// Initiate a `MemoryServe` instance, takes the contents of `memory_serve_assets.bin`
-    /// created at build time.
-    /// Specify which asset directory to include using the environment variable `ASSET_DIR`.
-    pub fn from_env() -> Self {
-        let assets: &[(&str, &[Asset])] =
-            include!(concat!(env!("OUT_DIR"), "/memory_serve_assets.rs"));
-
-        if assets.is_empty() {
-            panic!("No assets found, did you forget to set the {ENV_NAME} environment variable?");
-        }
-
-        Self::new(assets[0].1)
-    }
-
-    /// Include a directory using a named environment variable, prefixed by ASSRT_DIR_.
-    /// Specify which asset directory to include using the environment variable `ASSET_DIR_<SOME NAME>`.
-    /// The name should be in uppercase.
-    /// For example to include assets from the public directory using the name PUBLIC, set the enirobment variable
-    /// `ASSET_DIR_PUBLIC=./public` and call `MemoryServe::from_name("PUBLIC")`.
-    pub fn from_env_name(name: &str) -> Self {
-        let assets: &[(&str, &[Asset])] =
-            include!(concat!(env!("OUT_DIR"), "/memory_serve_assets.rs"));
-
-        let assets = assets
-            .iter()
-            .find(|(n, _)| n == &name)
-            .map(|(_, a)| *a)
-            .unwrap_or_default();
-
-        if assets.is_empty() {
-            panic!(
-                "No assets found, did you forget to set the {ENV_NAME}_{name} environment variable?"
-            );
-        }
-
-        Self::new(assets)
     }
 
     /// Which static file to serve on the route "/" (the index)
@@ -315,7 +216,6 @@ impl MemoryServe {
 
 #[cfg(test)]
 mod tests {
-    use crate::{self as memory_serve, Asset, CacheControl, MemoryServe};
     use axum::{
         Router,
         body::Body,
@@ -324,8 +224,17 @@ mod tests {
             header::{self, CACHE_CONTROL, CONTENT_ENCODING, CONTENT_LENGTH},
         },
     };
-    use memory_serve_macros::load_assets;
+    use std::sync::LazyLock;
     use tower::ServiceExt;
+
+    use crate::{self as memory_serve, Asset, CacheControl, MemoryServe};
+
+    static ASSETS: LazyLock<&'static [Asset]> =
+        LazyLock::new(|| memory_serve::build::load_test_assets("./static"));
+
+    macro_rules! test_load {
+        () => {{ MemoryServe::new(*ASSETS) }};
+    }
 
     async fn get(
         router: Router,
@@ -354,10 +263,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_load_assets() {
-        let assets: &[Asset] = load_assets!("../static");
-        let routes: Vec<&str> = assets.iter().map(|a| a.route).collect();
-        let content_types: Vec<&str> = assets.iter().map(|a| a.content_type).collect();
-        let etags: Vec<&str> = assets.iter().map(|a| a.etag).collect();
+        let routes: Vec<&str> = ASSETS.iter().map(|a| a.route).collect();
+        let content_types: Vec<&str> = ASSETS.iter().map(|a| a.content_type).collect();
+        let etags: Vec<&str> = ASSETS.iter().map(|a| a.etag).collect();
 
         assert_eq!(
             routes,
@@ -403,7 +311,7 @@ mod tests {
 
     #[tokio::test]
     async fn if_none_match_handling() {
-        let memory_router = MemoryServe::new(load_assets!("../static")).into_router();
+        let memory_router = test_load!().into_router();
         let (code, headers) =
             get(memory_router.clone(), "/index.html", "accept", "text/html").await;
         let etag: &str = headers.get(header::ETAG).unwrap().to_str().unwrap();
@@ -423,9 +331,7 @@ mod tests {
 
     #[tokio::test]
     async fn brotli_compression() {
-        let memory_router = MemoryServe::new(load_assets!("../static"))
-            .enable_brotli(true)
-            .into_router();
+        let memory_router = test_load!().enable_brotli(true).into_router();
         let (code, headers) = get(
             memory_router.clone(),
             "/index.html",
@@ -441,9 +347,7 @@ mod tests {
         assert_eq!(length.parse::<i32>().unwrap(), 178);
 
         // check disable compression
-        let memory_router = MemoryServe::new(load_assets!("../static"))
-            .enable_brotli(false)
-            .into_router();
+        let memory_router = test_load!().enable_brotli(false).into_router();
         let (code, headers) = get(
             memory_router.clone(),
             "/index.html",
@@ -459,9 +363,7 @@ mod tests {
 
     #[tokio::test]
     async fn gzip_compression() {
-        let memory_router = MemoryServe::new(load_assets!("../static"))
-            .enable_gzip(true)
-            .into_router();
+        let memory_router = test_load!().enable_gzip(true).into_router();
         let (code, headers) = get(
             memory_router.clone(),
             "/index.html",
@@ -478,9 +380,7 @@ mod tests {
         assert_eq!(length.parse::<i32>().unwrap(), 274);
 
         // check disable compression
-        let memory_router = MemoryServe::new(load_assets!("../static"))
-            .enable_gzip(false)
-            .into_router();
+        let memory_router = test_load!().enable_gzip(false).into_router();
         let (code, headers) = get(
             memory_router.clone(),
             "/index.html",
@@ -496,16 +396,12 @@ mod tests {
 
     #[tokio::test]
     async fn index_file() {
-        let memory_router = MemoryServe::new(load_assets!("../static"))
-            .index_file(None)
-            .into_router();
+        let memory_router = test_load!().index_file(None).into_router();
 
         let (code, _) = get(memory_router.clone(), "/", "accept", "*").await;
         assert_eq!(code, 404);
 
-        let memory_router = MemoryServe::new(load_assets!("../static"))
-            .index_file(Some("/index.html"))
-            .into_router();
+        let memory_router = test_load!().index_file(Some("/index.html")).into_router();
 
         let (code, _) = get(memory_router.clone(), "/", "accept", "*").await;
         assert_eq!(code, 200);
@@ -513,7 +409,7 @@ mod tests {
 
     #[tokio::test]
     async fn index_file_on_subdirs() {
-        let memory_router = MemoryServe::new(load_assets!("../static"))
+        let memory_router = test_load!()
             .index_file(Some("/index.html"))
             .index_on_subdirectories(false)
             .into_router();
@@ -521,7 +417,7 @@ mod tests {
         let (code, _) = get(memory_router.clone(), "/blog", "accept", "*").await;
         assert_eq!(code, 404);
 
-        let memory_router = MemoryServe::new(load_assets!("../static"))
+        let memory_router = test_load!()
             .index_file(Some("/index.html"))
             .index_on_subdirectories(true)
             .into_router();
@@ -532,9 +428,7 @@ mod tests {
 
     #[tokio::test]
     async fn clean_url() {
-        let memory_router = MemoryServe::new(load_assets!("../static"))
-            .enable_clean_url(true)
-            .into_router();
+        let memory_router = test_load!().enable_clean_url(true).into_router();
 
         let (code, _) = get(memory_router.clone(), "/about.html", "accept", "*").await;
         assert_eq!(code, 404);
@@ -545,19 +439,17 @@ mod tests {
 
     #[tokio::test]
     async fn fallback() {
-        let memory_router = MemoryServe::new(load_assets!("../static")).into_router();
+        let memory_router = test_load!().into_router();
         let (code, _) = get(memory_router.clone(), "/foobar", "accept", "*").await;
         assert_eq!(code, 404);
 
-        let memory_router = MemoryServe::new(load_assets!("../static"))
-            .fallback(Some("/index.html"))
-            .into_router();
+        let memory_router = test_load!().fallback(Some("/index.html")).into_router();
         let (code, headers) = get(memory_router.clone(), "/foobar", "accept", "*").await;
         let length = get_header(&headers, &CONTENT_LENGTH);
         assert_eq!(code, 404);
         assert_eq!(length.parse::<i32>().unwrap(), 437);
 
-        let memory_router = MemoryServe::new(load_assets!("../static"))
+        let memory_router = test_load!()
             .fallback(Some("/index.html"))
             .fallback_status(StatusCode::OK)
             .into_router();
@@ -570,9 +462,7 @@ mod tests {
     #[tokio::test]
     async fn cache_control() {
         async fn check_cache_control(cache_control: CacheControl, expected: &str) {
-            let memory_router = MemoryServe::new(load_assets!("../static"))
-                .cache_control(cache_control)
-                .into_router();
+            let memory_router = test_load!().cache_control(cache_control).into_router();
 
             let (code, headers) =
                 get(memory_router.clone(), "/assets/icon.jpg", "accept", "*").await;
@@ -604,9 +494,7 @@ mod tests {
         .await;
 
         async fn check_html_cache_control(cache_control: CacheControl, expected: &str) {
-            let memory_router = MemoryServe::new(load_assets!("../static"))
-                .html_cache_control(cache_control)
-                .into_router();
+            let memory_router = test_load!().html_cache_control(cache_control).into_router();
 
             let (code, headers) = get(memory_router.clone(), "/index.html", "accept", "*").await;
             let cache_control = get_header(&headers, &CACHE_CONTROL);
@@ -638,7 +526,7 @@ mod tests {
 
     #[tokio::test]
     async fn aliases() {
-        let memory_router = MemoryServe::new(load_assets!("../static"))
+        let memory_router = test_load!()
             .add_alias("/foobar", "/index.html")
             .add_alias("/baz", "/index.html")
             .into_router();

@@ -8,7 +8,7 @@ async fn main() {
         .with_max_level(Level::TRACE)
         .init();
 
-    let memory_router = memory_serve::from_local_build!()
+    let memory_router = memory_serve::load!()
         .index_file(Some("/index.html"))
         .into_router();
 
