@@ -17,6 +17,7 @@ pub enum CacheControl {
 }
 
 impl CacheControl {
+    /// Convert the cache-control variant into the header key/value pair.
     pub(crate) fn as_header(&self) -> (HeaderName, HeaderValue) {
         let value = match self {
             Self::Long => "max-age=31536000, immutable",

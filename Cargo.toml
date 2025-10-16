@@ -1,26 +1,28 @@
-[workspace]
-members = ["memory-serve", "memory-serve-macros", "memory-serve-core"]
-exclude = ["example"]
-resolver = "2"
-
-[workspace.package]
-version = "1.2.2"
+[package]
+name = "memory-serve"
+version = "2.0.0-beta.0"
 edition = "2024"
 license = "Apache-2.0 OR MIT"
 repository = "https://github.com/tweedegolf/memory-serve"
 description = "Fast static file serving for axum web applications"
 publish = true
 
-[workspace.dependencies]
-axum = { version = "0.8" }
+[lib]
+doctest = false
+
+[features]
+force-embed = []
+
+[dependencies]
+axum = "0.8"
 brotli = "8.0"
-flate2 = "1.0"
+flate2 = "1.1"
 mime_guess = "2.0"
-memory-serve-core = { path = "./memory-serve-core", version = "1.2.2" }
-memory-serve-macros = { path = "./memory-serve-macros", version = "1.2.2" }
-sha256 = "1.4"
+sha256 = "1.6"
 tracing = "0.1"
 urlencoding = "2.1"
-walkdir = "2.0"
-tokio = { version = "1.0", features = ["full"] }
+walkdir = "2.5"
+
+[dev-dependencies]
+tokio = { version = "1.48", features = ["full"] }
 tower = { version = "0.5", features = ["util"] }

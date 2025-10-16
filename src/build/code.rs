@@ -1,12 +1,12 @@
-use std::{env, path::Path};
+use std::path::Path;
 
-use crate::{asset::Asset, list::list_assets};
+use super::{file_asset::FileAsset, list::list_assets};
 
 /// Generate code with metadata and contents for the assets
-pub fn assets_to_code(
+pub(super) fn assets_to_code(
     asset_dir: &str,
     path: &Path,
-    out_dir: Option<&Path>,
+    out_dir: &Path,
     embed: bool,
     log: fn(&str),
 ) -> String {
@@ -24,27 +24,21 @@ pub fn assets_to_code(
     let mut code = "&[".to_string();
 
     for asset in assets {
-        let Asset {
+        let FileAsset {
             route,
             path,
             etag,
             content_type,
             compressed_bytes,
+            should_compress,
         } = asset;
 
         let is_compressed = compressed_bytes.is_some();
 
         let bytes = if !embed {
             "None".to_string()
-        } else if let Some(compressed_bytes) = &compressed_bytes {
-            let file_path = if let Some(out_dir) = out_dir {
-                Path::new(&out_dir).join(&etag)
-            } else {
-                let tmp_dir = env::temp_dir();
-
-                Path::new(&tmp_dir).join(&etag)
-            };
-
+        } else if let Some(compressed_bytes) = compressed_bytes {
+            let file_path = out_dir.join(&etag);
             std::fs::write(&file_path, compressed_bytes).expect("Unable to write file to out dir.");
 
             format!("Some(include_bytes!(r\"{}\"))", file_path.to_string_lossy())
@@ -61,6 +55,7 @@ pub fn assets_to_code(
                 etag: \"{etag}\",
                 bytes: {bytes},
                 is_compressed: {is_compressed},
+                should_compress: {should_compress},
             }},"
         ));
     }

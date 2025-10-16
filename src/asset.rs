@@ -5,34 +5,57 @@ use axum::{
     },
     response::{IntoResponse, Response},
 };
-use memory_serve_core::COMPRESS_TYPES;
 use tracing::debug;
 
 use crate::{
-    ServeOptions,
-    util::{compress_brotli, compress_gzip, content_length, decompress_brotli, supports_encoding},
+    options::ServeOptions,
+    util::{
+        compression::{compress_brotli, compress_gzip, decompress_brotli},
+        headers::{content_length, supports_encoding},
+    },
 };
 
 const BROTLI_ENCODING: &str = "br";
-#[allow(clippy::declare_interior_mutable_const)]
+
 const BROTLI_HEADER: (HeaderName, HeaderValue) =
     (CONTENT_ENCODING, HeaderValue::from_static(BROTLI_ENCODING));
+
 const GZIP_ENCODING: &str = "gzip";
-#[allow(clippy::declare_interior_mutable_const)]
+
 const GZIP_HEADER: (HeaderName, HeaderValue) =
     (CONTENT_ENCODING, HeaderValue::from_static(GZIP_ENCODING));
+
+/// Preferred compression for a dynamically served asset.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum OnDemandEncoding {
+    /// Send the original bytes without further compression.
+    Identity,
+    /// Compress the response using brotli.
+    Brotli,
+    /// Compress the response using gzip.
+    Gzip,
+}
 
 /// Represents a static asset that can be served
 #[derive(Debug)]
 pub struct Asset {
+    /// The HTTP route used to serve the asset, e.g. `/index.html`.
     pub route: &'static str,
+    /// Absolute filesystem path pointing to the source asset on disk.
     pub path: &'static str,
+    /// Strong validator (SHA-256) used for HTTP caching semantics.
     pub etag: &'static str,
+    /// MIME type advertised for the asset.
     pub content_type: &'static str,
+    /// Optional embedded bytes for the asset; `None` when dynamic loading is used.
     pub bytes: Option<&'static [u8]>,
+    /// Indicates if the embedded bytes are already brotli compressed.
     pub is_compressed: bool,
+    /// Whether the asset should be compressed before sending to clients.
+    pub should_compress: bool,
 }
 
+/// Aggregates response metadata and payloads for an asset request.
 struct AssetResponse<'t, B> {
     options: &'t ServeOptions,
     headers: &'t HeaderMap,
@@ -48,6 +71,7 @@ struct AssetResponse<'t, B> {
 }
 
 impl<B: IntoResponse> AssetResponse<'_, B> {
+    /// Construct an Axum `Response` from the gathered asset data.
     fn into_response(self) -> Response {
         let content_type = self.asset.content_type();
         let cache_control = self.asset.cache_control(self.options);
@@ -114,6 +138,7 @@ impl<B: IntoResponse> AssetResponse<'_, B> {
 }
 
 impl Asset {
+    /// Pick the cache policy for the asset based on its MIME type.
     fn cache_control(&self, options: &ServeOptions) -> (HeaderName, HeaderValue) {
         match self.content_type {
             "text/html" => options.html_cache_control.as_header(),
@@ -121,6 +146,7 @@ impl Asset {
         }
     }
 
+    /// Produce the Content-Type header tuple for the asset.
     fn content_type(&self) -> (HeaderName, HeaderValue) {
         (CONTENT_TYPE, HeaderValue::from_static(self.content_type))
     }
@@ -136,13 +162,13 @@ impl Asset {
             uncompressed = Box::new(decompress_brotli(uncompressed).unwrap_or_default()).leak()
         }
 
-        let gzip_bytes = if self.is_compressed && options.enable_gzip {
+        let gzip_bytes = if self.should_compress && options.enable_gzip {
             Box::new(compress_gzip(uncompressed).unwrap_or_default()).leak()
         } else {
             Default::default()
         };
 
-        let brotli_bytes = if self.is_compressed {
+        let brotli_bytes = if self.should_compress && options.enable_brotli {
             self.bytes.unwrap_or_default()
         } else {
             Default::default()
@@ -151,27 +177,55 @@ impl Asset {
         (uncompressed, brotli_bytes, gzip_bytes)
     }
 
+    /// Load the asset bytes from disk, returning a `404` if the file is missing.
+    fn read_source_bytes(&self) -> Result<Vec<u8>, StatusCode> {
+        std::fs::read(self.path).map_err(|_| StatusCode::NOT_FOUND)
+    }
+
+    /// Decide which compression algorithm (if any) to use for a dynamic request.
+    fn negotiate_dynamic_encoding(
+        &self,
+        headers: &HeaderMap,
+        options: &ServeOptions,
+    ) -> OnDemandEncoding {
+        if !self.should_compress {
+            return OnDemandEncoding::Identity;
+        }
+
+        if options.enable_brotli && supports_encoding(headers, BROTLI_ENCODING) {
+            return OnDemandEncoding::Brotli;
+        }
+
+        if options.enable_gzip && supports_encoding(headers, GZIP_ENCODING) {
+            return OnDemandEncoding::Gzip;
+        }
+
+        OnDemandEncoding::Identity
+    }
+
+    /// Compress the provided bytes according to the negotiated encoding.
+    fn encode_dynamic_bytes(&self, bytes: &[u8], encoding: OnDemandEncoding) -> (Vec<u8>, Vec<u8>) {
+        match encoding {
+            OnDemandEncoding::Brotli => (compress_brotli(bytes).unwrap_or_default(), Vec::new()),
+            OnDemandEncoding::Gzip => (Vec::new(), compress_gzip(bytes).unwrap_or_default()),
+            OnDemandEncoding::Identity => (Vec::new(), Vec::new()),
+        }
+    }
+
+    /// Load an asset from disk and emit a response tailored to client encodings.
     fn dynamic_handler(
         &self,
         headers: &HeaderMap,
         status: StatusCode,
         options: &ServeOptions,
     ) -> Response {
-        let Ok(bytes) = std::fs::read(self.path) else {
-            return StatusCode::NOT_FOUND.into_response();
+        let bytes = match self.read_source_bytes() {
+            Ok(bytes) => bytes,
+            Err(status) => return status.into_response(),
         };
 
-        let brotli_bytes = if options.enable_brotli && COMPRESS_TYPES.contains(&self.content_type) {
-            compress_brotli(&bytes).unwrap_or_default()
-        } else {
-            Default::default()
-        };
-
-        let gzip_bytes = if options.enable_gzip && COMPRESS_TYPES.contains(&self.content_type) {
-            compress_gzip(&bytes).unwrap_or_default()
-        } else {
-            Default::default()
-        };
+        let encoding = self.negotiate_dynamic_encoding(headers, options);
+        let (brotli_bytes, gzip_bytes) = self.encode_dynamic_bytes(&bytes, encoding);
 
         let etag = sha256::digest(&bytes);
 
@@ -191,6 +245,7 @@ impl Asset {
         .into_response()
     }
 
+    /// Serve an asset using either embedded bytes or on-demand loading.
     pub(super) fn handler(
         &self,
         headers: &HeaderMap,
