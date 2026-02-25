@@ -16,7 +16,7 @@ mod util;
 
 pub use crate::{
     asset::Asset,
-    build::{load_directory, load_directory_with_embed, load_names_directories},
+    build::{assets_to_code, load_directory, load_directory_with_embed, load_names_directories},
     cache_control::CacheControl,
 };
 

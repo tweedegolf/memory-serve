@@ -3,7 +3,7 @@ use std::path::Path;
 use super::{file_asset::FileAsset, list::list_assets};
 
 /// Generate code with metadata and contents for the assets
-pub(super) fn assets_to_code(
+pub fn assets_to_code(
     asset_dir: &str,
     path: &Path,
     out_dir: &Path,

@@ -7,6 +7,8 @@ mod list;
 const ASSET_FILE: &str = "memory_serve_assets.rs";
 const QUIET_ENV_NAME: &str = "MEMORY_SERVE_QUIET";
 
+pub use code::assets_to_code;
+
 /// Load a directory of assets, keeping an administration of all files
 /// and optionally embedding them into the binary
 pub fn load_directory<P: Into<PathBuf>>(path: P) {
