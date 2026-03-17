@@ -70,7 +70,7 @@ fn main() {
 }
 ```
 
-`main./rs`:
+`main.rs`:
 ```rust
 use axum::{response::Html, routing::get, Router};
 use std::net::SocketAddr;
