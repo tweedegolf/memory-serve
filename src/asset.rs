@@ -5,6 +5,7 @@ use axum::{
     },
     response::{IntoResponse, Response},
 };
+use fs_err as fs;
 use tracing::debug;
 
 use crate::{
@@ -179,7 +180,7 @@ impl Asset {
 
     /// Load the asset bytes from disk, returning a `404` if the file is missing.
     fn read_source_bytes(&self) -> Result<Vec<u8>, StatusCode> {
-        std::fs::read(self.path).map_err(|_| StatusCode::NOT_FOUND)
+        fs::read(self.path).map_err(|_| StatusCode::NOT_FOUND)
     }
 
     /// Decide which compression algorithm (if any) to use for a dynamic request.

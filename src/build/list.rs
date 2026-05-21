@@ -1,5 +1,6 @@
 use std::path::Path;
 
+use fs_err as fs;
 use walkdir::WalkDir;
 
 use crate::{
@@ -65,7 +66,7 @@ pub(super) fn list_assets(base_path: &Path, embed: bool, log: fn(&str)) -> Vec<F
                 });
             }
 
-            let Ok(bytes) = std::fs::read(entry.path()) else {
+            let Ok(bytes) = fs::read(entry.path()) else {
                 log(&format!("skipping file {route}: file is not readable"));
                 return None;
             };

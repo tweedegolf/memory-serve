@@ -1,5 +1,7 @@
 use std::path::PathBuf;
 
+use fs_err as fs;
+
 mod code;
 mod file_asset;
 mod list;
@@ -44,10 +46,8 @@ where
     let mut code = "&[".to_string();
 
     for (name, asset_dir) in named_paths {
-        let asset_dir = asset_dir
-            .into()
-            .canonicalize()
-            .expect("Could not canonicalize the provided path");
+        let asset_dir =
+            fs::canonicalize(asset_dir.into()).expect("Could not canonicalize the provided path");
         let asset_dir_label = asset_dir.to_string_lossy();
         let assets = code::assets_to_code(&asset_dir_label, &asset_dir, &out_dir, embed, log);
 
@@ -60,7 +60,7 @@ where
 
     let target = out_dir.join(ASSET_FILE);
 
-    std::fs::write(target, code).expect("Unable to write memory-serve asset file.");
+    fs::write(target, code).expect("Unable to write memory-serve asset file.");
 }
 
 #[cfg(test)]

@@ -17,6 +17,7 @@ force-embed = []
 axum = "0.8"
 brotli = "8.0"
 flate2 = "1.1"
+fs-err = "3.3.0"
 mime_guess = "2.0"
 sha256 = "1.6"
 tracing = "0.1"
