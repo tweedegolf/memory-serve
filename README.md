@@ -62,7 +62,8 @@ calling [`Router::into_make_service()`](https://docs.rs/axum/latest/axum/routing
 ### Named directories
 
 Multiple directories can be included using `load_names_directories` from your `build.rs` script.
-This takes a list of tuples, with the name and the path of your asset directories.
+This takes a list of tuples, with the name and the path of your asset directories,
+and a boolean indicating whether to embed the assets into the binary.
 
 You can use the names as specified in the `load_names_directories` call to load the specific
 `MemoryServe` instance by passing the name as a string to the `load!` macro.
@@ -146,16 +147,10 @@ Example output:
 
 ```txt
  INFO memory_serve: serving /assets/icon.jpg 1366 bytes
- INFO memory_serve: serving /assets/index.css 1552 bytes
- INFO memory_serve: serving /assets/index.css (brotli compressed) 509 bytes
- INFO memory_serve: serving /assets/index.css (gzip compressed) 624 bytes
+ INFO memory_serve: serving /assets/index.css 1552 -> 509 bytes (compressed)
  INFO memory_serve: serving /assets/index.js 20 bytes
- INFO memory_serve: serving /assets/stars.svg 2255 bytes
- INFO memory_serve: serving /assets/stars.svg (brotli compressed) 907 bytes
- INFO memory_serve: serving /assets/stars.svg (gzip compressed) 1048 bytes
- INFO memory_serve: serving /index.html 437 bytes
- INFO memory_serve: serving /index.html (brotli compressed) 178 bytes
- INFO memory_serve: serving /index.html (gzip compressed) 274 bytes
+ INFO memory_serve: serving /assets/stars.svg 2255 -> 907 bytes (compressed)
+ INFO memory_serve: serving /index.html 437 -> 178 bytes (compressed)
  INFO memory_serve: serving /index.html as index on /
 ```
 

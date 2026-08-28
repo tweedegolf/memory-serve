@@ -81,11 +81,19 @@ pub(super) fn load_test_assets<P: Into<PathBuf>>(path: P) -> &'static [crate::As
             path: fa.path.to_string_lossy().to_string().leak(),
             etag: fa.etag.leak(),
             content_type: fa.content_type.leak(),
-            bytes: fa.compressed_bytes.map(|v| {
-                let s: &'static [u8] = v.leak();
-
-                s
-            }),
+            bytes: if !embed {
+                None
+            } else if let Some(v) = fa.compressed_bytes {
+                Some(v.leak() as &'static [u8])
+            } else {
+                // mirror the code generator: embed the raw file contents
+                // when no compressed version was produced at build time
+                Some(
+                    fs::read(&fa.path)
+                        .expect("Unable to read asset file")
+                        .leak() as &'static [u8],
+                )
+            },
             should_compress: fa.should_compress,
         })
         .collect::<Vec<_>>();

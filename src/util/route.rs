@@ -18,9 +18,11 @@ const ALLOWED_CHARS: [(&str, &str); 19] = [
     ("%24", "$"),
     ("%2C", ","),
     ("%3F", "?"),
-    ("%25", "%"),
     ("%5B", "["),
     ("%5D", "]"),
+    // decoding "%" must happen last, otherwise a literal "%5B" (encoded
+    // as "%255B") would be double-decoded into "["
+    ("%25", "%"),
 ];
 
 /// Convert a path to a (HTTP) path / route
@@ -94,5 +96,14 @@ mod test {
             path_to_route(base, path),
             "/assets/stars:wow%20!@%%5E&*()ama%7Bzi%7Dng%F0%9F%92%A9!%20*%20'%20(%20)%20;%20:%20@%20&%20=%20+%20$%20,%20?%20%%20[%20]%20\\.svg"
         );
+    }
+
+    #[test]
+    fn test_no_double_decode() {
+        // a literal "%5B" in a file name should not be decoded into "["
+        let base = std::path::Path::new("/");
+        let path = std::path::Path::new("/a%5Bb.txt");
+
+        assert_eq!(path_to_route(base, path), "/a%5Bb.txt");
     }
 }

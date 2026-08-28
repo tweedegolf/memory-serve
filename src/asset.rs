@@ -160,7 +160,8 @@ impl Asset {
             uncompressed = Box::new(decompress_brotli(uncompressed).unwrap_or_default()).leak()
         }
 
-        let gzip_bytes = if self.should_compress && options.enable_gzip {
+        let gzip_bytes = if self.should_compress && options.enable_gzip && !uncompressed.is_empty()
+        {
             Box::new(compress_gzip(uncompressed).unwrap_or_default()).leak()
         } else {
             Default::default()
@@ -170,6 +171,8 @@ impl Asset {
             if self.is_compressed {
                 // The embedded bytes are already brotli compressed.
                 self.bytes.unwrap_or_default()
+            } else if uncompressed.is_empty() {
+                Default::default()
             } else {
                 // The embedded bytes are stored uncompressed (e.g. `force-embed`
                 // in debug builds), so compress them on the fly.
