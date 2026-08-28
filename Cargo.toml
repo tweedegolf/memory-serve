@@ -25,5 +25,5 @@ urlencoding = "2.1"
 walkdir = "2.5"
 
 [dev-dependencies]
-tokio = { version = "1.48", features = ["full"] }
+tokio = { version = "1.53", features = ["full"] }
 tower = { version = "0.5", features = ["util"] }

@@ -20,8 +20,8 @@ pub use crate::{
     cache_control::CacheControl,
 };
 
-/// Helper struct to create and configure an axum to serve static files from
-/// memory.
+/// Helper struct to create and configure an axum router to serve static
+/// files from memory.
 #[derive(Debug, Default)]
 pub struct MemoryServe {
     options: options::ServeOptions,
@@ -114,7 +114,7 @@ impl MemoryServe {
         self
     }
 
-    /// Cache header to non-HTML files.
+    /// The Cache-Control header to set for non-HTML files.
     /// See [Cache control](index.html#cache-control) for options.
     pub fn cache_control(mut self, cache_control: CacheControl) -> Self {
         self.options.cache_control = cache_control;
@@ -162,7 +162,7 @@ impl MemoryServe {
             let (uncompressed_bytes, brotli_bytes, gzip_bytes) = asset.leak_bytes(options);
 
             if !uncompressed_bytes.is_empty() {
-                if asset.is_compressed {
+                if !brotli_bytes.is_empty() {
                     info!(
                         "serving {} {} -> {} bytes (compressed)",
                         asset.route,
