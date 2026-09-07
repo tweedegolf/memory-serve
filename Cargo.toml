@@ -15,7 +15,7 @@ force-embed = []
 
 [dependencies]
 axum = "0.8"
-brotli = "8.0"
+brotli = "9.0"
 flate2 = "1.1"
 fs-err = "3.3.0"
 mime_guess = "2.0"
