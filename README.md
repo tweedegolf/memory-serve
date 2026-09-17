@@ -24,6 +24,10 @@ requests are handled accordingly.
 Text-based files are served in plain or with gzip or brotli compression
 based on the abilities and preferences of the client.
 
+Assets can optionally be served on a
+[cache-busted route](#cache-busting) containing a hash of their contents,
+so that clients can cache them indefinitely.
+
 Routing can be configured in a flexible manner, for instance to accommodate
 an SPA.
 
@@ -123,8 +127,10 @@ the following configuration methods:
 | [`MemoryServe::cache_control`]           | `CacheControl::Medium`  | Cache control header to serve on other files               |
 | [`MemoryServe::add_alias`]               | `[]`                    | Create a route / file alias                                |
 | [`MemoryServe::enable_clean_url`]        | `false`                 | Enable clean URLs                                          |
+| [`MemoryServe::enable_hashed_routes`]    | `false`                 | Also serve assets on a cache-busted, hashed route          |
 
-See [`Cache control`](#cache-control) for the cache control options.
+See [`Cache control`](#cache-control) for the cache control options and
+[`Cache busting`](#cache-busting) for hashed routes.
 
 [^1]: Compression defaults to enabled in release builds and disabled in debug
 builds (where assets are served dynamically).
@@ -154,6 +160,12 @@ Example output:
  INFO memory_serve: serving /index.html as index on /
 ```
 
+With hashed routes enabled, each hashed route is logged as well:
+
+```txt
+ INFO memory_serve: serving /assets/index.css on hashed route /assets/index.ec4edeea111c8549.css
+```
+
 ## Cache control
 
 There are 5 different values to choose from for the cache-control settings:
@@ -165,3 +177,32 @@ There are 5 different values to choose from for the cache-control settings:
 | [`CacheControl::Short`]   | cache kept for max 5 minutes, only at the client (not in a proxy)                   | `max-age=300, private`                         |
 | [`CacheControl::NoCache`] | do not cache if freshness is really vital                                           | `no-cache`                                     |
 | [`CacheControl::Custom`]  | Custom value                                                                        | _user defined_                                 |
+
+## Cache busting
+
+With [`MemoryServe::enable_hashed_routes`] every non-HTML asset is also served
+on a route that contains a hash of its contents, for instance
+`/assets/index.css` is also available as `/assets/index.3f9a1c2b7d84e6a0.css`.
+The hashed route changes whenever the file changes, so embedded assets are
+served there with [`CacheControl::Long`] (`immutable`). The plain route keeps
+the configured cache control.
+
+Use [`MemoryServe::manifest`] to look up the hashed routes, for instance to
+reference them from your templates. HTML files always map to their plain
+route, and when hashed routes are disabled all assets do, so templates work
+regardless of the setting:
+
+```rust
+let memory_serve = memory_serve::load!().enable_hashed_routes(true);
+
+// keep this around, for instance in your axum state
+let manifest = memory_serve.manifest();
+// Some("/assets/index.3f9a1c2b7d84e6a0.css")
+let css = manifest.get("/assets/index.css");
+
+let router = memory_serve.into_router();
+```
+
+In debug builds (dynamic serving) the hash is computed when the manifest or
+router is created, and the hashed route is served with the regular cache
+control so that edited files are not cached as immutable.

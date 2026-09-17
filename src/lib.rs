@@ -11,13 +11,16 @@ mod asset;
 mod build;
 mod cache_control;
 mod load;
+mod manifest;
 mod options;
 mod util;
 
+use crate::util::route::hashed_route;
 pub use crate::{
     asset::Asset,
     build::{assets_to_code, load_directory, load_directory_with_embed, load_names_directories},
     cache_control::CacheControl,
+    manifest::Manifest,
 };
 
 /// Helper struct to create and configure an axum router to serve static
@@ -129,6 +132,50 @@ impl MemoryServe {
         self
     }
 
+    /// Whether to also serve non-HTML assets on a cache-busted route containing
+    /// a content hash, e.g. `/assets/index.3f9a1c2b7d84e6a0.css`. Embedded
+    /// assets are served there with [`CacheControl::Long`].
+    /// Use [`MemoryServe::manifest`] to look up the hashed routes.
+    /// See [Cache busting](index.html#cache-busting).
+    /// By default this is `false`.
+    pub fn enable_hashed_routes(mut self, enable_hashed_routes: bool) -> Self {
+        self.options.enable_hashed_routes = enable_hashed_routes;
+
+        self
+    }
+
+    /// Create a [`Manifest`] mapping each asset route to the route it is served
+    /// on: the hashed route when [`MemoryServe::enable_hashed_routes`] is set
+    /// (except for HTML), the plain route otherwise.
+    /// Dynamically served assets are hashed by reading the file, so call this
+    /// once at startup and keep the result.
+    pub fn manifest(&self) -> Manifest {
+        let routes = self
+            .assets
+            .iter()
+            .map(|asset| {
+                let served = self
+                    .hashed_route(asset)
+                    .unwrap_or_else(|| asset.route.to_string());
+
+                (asset.route, served)
+            })
+            .collect();
+
+        Manifest::new(routes)
+    }
+
+    /// The hashed route for a non-HTML asset, if enabled and hashable.
+    fn hashed_route(&self, asset: &Asset) -> Option<String> {
+        if !self.options.enable_hashed_routes || asset.is_html() {
+            return None;
+        }
+
+        let hash = asset.content_hash()?;
+
+        Some(hashed_route(asset.route, &hash))
+    }
+
     /// Create an axum `Router` instance that will serve the included static assets
     /// Caution! This method leaks memory. It should only be called once (at startup).
     pub fn into_router<S>(self) -> axum::Router<S>
@@ -136,7 +183,14 @@ impl MemoryServe {
         S: Clone + Send + Sync + 'static,
     {
         let mut router = axum::Router::new();
-        let options = Box::leak(Box::new(self.options));
+        let options: &'static options::ServeOptions = Box::leak(Box::new(self.options));
+
+        // hashed routes are immutable, so embedded assets get a long cache
+        let hashed_options: &'static options::ServeOptions =
+            Box::leak(Box::new(options::ServeOptions {
+                cache_control: CacheControl::Long,
+                ..*options
+            }));
 
         // Warn about configuration that silently does nothing because it
         // references a route that no asset provides.
@@ -229,6 +283,31 @@ impl MemoryServe {
 
                     router = router.route(from, get(handler));
                 }
+            }
+
+            if let Some(hashed) = self.hashed_route(asset) {
+                info!("serving {} on hashed route {}", asset.route, hashed);
+
+                // dynamically served files may change, keep the regular cache control
+                let hashed_options = if uncompressed_bytes.is_empty() {
+                    options
+                } else {
+                    hashed_options
+                };
+
+                router = router.route(
+                    &hashed,
+                    get(move |headers: HeaderMap| {
+                        ready(asset.handler(
+                            &headers,
+                            StatusCode::OK,
+                            uncompressed_bytes,
+                            brotli_bytes,
+                            gzip_bytes,
+                            hashed_options,
+                        ))
+                    }),
+                );
             }
         }
 
@@ -573,6 +652,86 @@ mod tests {
             CacheControl::Long.as_header().1.to_str().unwrap(),
         )
         .await;
+    }
+
+    #[tokio::test]
+    async fn hashed_routes() {
+        let memory_serve = test_load!().enable_hashed_routes(true);
+        let manifest = memory_serve.manifest();
+        let memory_router = memory_serve.into_router();
+
+        // non-HTML assets map to a route with a 16 character hex hash before
+        // the extension
+        let hashed = manifest.get("/assets/index.css").unwrap();
+        let hash = hashed
+            .strip_prefix("/assets/index.")
+            .and_then(|rest| rest.strip_suffix(".css"))
+            .unwrap();
+        assert_eq!(hash.len(), 16);
+        assert!(hash.chars().all(|c| c.is_ascii_hexdigit()));
+
+        if !cfg!(debug_assertions) || cfg!(feature = "force-embed") {
+            assert_eq!(hashed, "/assets/index.ec4edeea111c8549.css");
+        }
+
+        // HTML files keep their plain route, unknown routes are absent
+        assert_eq!(manifest.get("/index.html"), Some("/index.html"));
+        assert_eq!(manifest.get("/blog/index.html"), Some("/blog/index.html"));
+        assert_eq!(manifest.get("/missing.css"), None);
+        assert_eq!(manifest.len(), ASSETS.len());
+
+        // the hashed route serves the same file
+        let (code, headers) = get(memory_router.clone(), hashed, "accept", "*").await;
+        assert_eq!(code, 200);
+        assert_eq!(get_header(&headers, &header::CONTENT_TYPE), "text/css");
+        assert_eq!(get_header(&headers, &CONTENT_LENGTH), "1552");
+
+        // embedded assets are immutable on the hashed route, dynamically
+        // served assets keep the regular cache control
+        let expected_cache_control = if !cfg!(debug_assertions) || cfg!(feature = "force-embed") {
+            CacheControl::Long
+        } else {
+            CacheControl::Medium
+        };
+        assert_eq!(
+            get_header(&headers, &CACHE_CONTROL),
+            expected_cache_control.as_header().1.to_str().unwrap()
+        );
+
+        // the plain route is still served with the configured cache control
+        let (code, headers) = get(memory_router.clone(), "/assets/index.css", "accept", "*").await;
+        assert_eq!(code, 200);
+        assert_eq!(
+            get_header(&headers, &CACHE_CONTROL),
+            CacheControl::Medium.as_header().1.to_str().unwrap()
+        );
+
+        // every manifest entry resolves
+        for (_, served) in manifest.iter() {
+            let (code, _) = get(memory_router.clone(), served, "accept", "*").await;
+            assert_eq!(code, 200, "{served} should be served");
+        }
+    }
+
+    #[tokio::test]
+    async fn hashed_routes_disabled() {
+        let memory_serve = test_load!();
+        let manifest = memory_serve.manifest();
+        let memory_router = memory_serve.into_router();
+
+        // without hashed routes every asset maps to its plain route
+        assert_eq!(manifest.get("/assets/index.css"), Some("/assets/index.css"));
+        assert_eq!(manifest.get("/index.html"), Some("/index.html"));
+        assert_eq!(manifest.len(), ASSETS.len());
+
+        let (code, _) = get(
+            memory_router.clone(),
+            "/assets/index.ec4edeea111c8549.css",
+            "accept",
+            "*",
+        )
+        .await;
+        assert_eq!(code, 404);
     }
 
     #[tokio::test]

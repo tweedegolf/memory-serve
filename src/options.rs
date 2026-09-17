@@ -30,6 +30,7 @@ pub(super) struct ServeOptions {
     pub(super) enable_brotli: bool,
     pub(super) enable_gzip: bool,
     pub(super) enable_clean_url: bool,
+    pub(super) enable_hashed_routes: bool,
 }
 
 impl Default for ServeOptions {
@@ -45,6 +46,7 @@ impl Default for ServeOptions {
             enable_brotli: !cfg!(debug_assertions),
             enable_gzip: !cfg!(debug_assertions),
             enable_clean_url: false,
+            enable_hashed_routes: false,
         }
     }
 }
