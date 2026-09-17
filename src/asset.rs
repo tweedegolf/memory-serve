@@ -149,6 +149,23 @@ impl Asset {
         (CONTENT_TYPE, HeaderValue::from_static(self.content_type))
     }
 
+    /// Whether the asset is an HTML document.
+    pub(crate) fn is_html(&self) -> bool {
+        self.content_type == "text/html"
+    }
+
+    /// SHA-256 hex digest of the uncompressed contents; dynamically served
+    /// assets are read from disk. `None` if the file can not be read.
+    pub(crate) fn content_hash(&self) -> Option<String> {
+        if !self.etag.is_empty() {
+            return Some(self.etag.to_string());
+        }
+
+        self.read_source_bytes()
+            .ok()
+            .map(|bytes| sha256::digest(&bytes))
+    }
+
     /// Get the bytes for the asset, which is possibly compressed in the binary
     pub(crate) fn leak_bytes(
         &self,
