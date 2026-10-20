@@ -5,7 +5,7 @@ use axum::{
     routing::get,
 };
 use std::future::ready;
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 
 mod asset;
 mod build;
@@ -212,22 +212,26 @@ impl MemoryServe {
             }
         }
 
+        let mut dynamic_count = 0;
+        let mut hashed_count = 0;
+
         for asset in self.assets {
             let (uncompressed_bytes, brotli_bytes, gzip_bytes) = asset.leak_bytes(options);
 
             if !uncompressed_bytes.is_empty() {
                 if !brotli_bytes.is_empty() {
-                    info!(
+                    debug!(
                         "serving {} {} -> {} bytes (compressed)",
                         asset.route,
                         uncompressed_bytes.len(),
                         brotli_bytes.len()
                     );
                 } else {
-                    info!("serving {} {} bytes", asset.route, uncompressed_bytes.len());
+                    debug!("serving {} {} bytes", asset.route, uncompressed_bytes.len());
                 }
             } else {
-                info!("serving {} (dynamically)", asset.route);
+                debug!("serving {} (dynamically)", asset.route);
+                dynamic_count += 1;
             }
 
             let handler = |headers: HeaderMap| {
@@ -263,7 +267,7 @@ impl MemoryServe {
                     router = router.route("/", get(handler));
                 } else if options.index_on_subdirectories && asset.route.ends_with(index) {
                     let path = &asset.route[..asset.route.len() - index.len()];
-                    info!("serving {} as index on {}", asset.route, path);
+                    debug!("serving {} as index on {}", asset.route, path);
 
                     router = router.route(path, get(handler));
                 }
@@ -279,14 +283,15 @@ impl MemoryServe {
             // add all aliases that point to the asset route
             for (from, to) in self.aliases.iter() {
                 if *to == asset.route {
-                    info!("serving {} on alias {}", asset.route, from);
+                    debug!("serving {} on alias {}", asset.route, from);
 
                     router = router.route(from, get(handler));
                 }
             }
 
             if let Some(hashed) = self.hashed_route(asset) {
-                info!("serving {} on hashed route {}", asset.route, hashed);
+                debug!("serving {} on hashed route {}", asset.route, hashed);
+                hashed_count += 1;
 
                 // dynamically served files may change, keep the regular cache control
                 let hashed_options = if uncompressed_bytes.is_empty() {
@@ -310,6 +315,20 @@ impl MemoryServe {
                 );
             }
         }
+
+        let mut details = Vec::new();
+        if dynamic_count > 0 {
+            details.push(format!("{dynamic_count} dynamically"));
+        }
+        if hashed_count > 0 {
+            details.push(format!("{hashed_count} on hashed routes"));
+        }
+        let details = if details.is_empty() {
+            String::new()
+        } else {
+            format!(" ({})", details.join(", "))
+        };
+        info!("serving {} assets{details}", self.assets.len());
 
         router
     }

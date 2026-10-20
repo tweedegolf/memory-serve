@@ -12,15 +12,31 @@ pub fn assets_to_code(
     embed: bool,
     log: fn(&str),
 ) -> String {
+    generate_code(asset_dir, path, out_dir, embed, log, log)
+}
+
+/// Generate code for the assets, logging a summary and skipped files with
+/// `log` and each included file with `log_file`
+pub(super) fn generate_code(
+    asset_dir: &str,
+    path: &Path,
+    out_dir: &Path,
+    embed: bool,
+    log: fn(&str),
+    log_file: fn(&str),
+) -> String {
     log(&format!("Loading static assets from {asset_dir}"));
 
-    if embed {
-        log("Embedding assets into binary");
-    } else {
-        log("Not embedding assets into binary, assets will load dynamically");
-    }
+    let assets = list_assets(path, embed, log, log_file);
 
-    let assets = list_assets(path, embed, log);
+    if embed {
+        log(&format!("Embedding {} assets into binary", assets.len()));
+    } else {
+        log(&format!(
+            "Not embedding {} assets into binary, assets will load dynamically",
+            assets.len()
+        ));
+    }
 
     // using a string is faster than using quote ;)
     let mut code = "&[".to_string();

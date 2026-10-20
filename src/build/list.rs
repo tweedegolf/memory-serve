@@ -13,8 +13,14 @@ use crate::{
 
 use super::file_asset::FileAsset;
 
-/// List all assets in the given directory (recursively) and return a list of assets with metadata
-pub(super) fn list_assets(base_path: &Path, embed: bool, log: fn(&str)) -> Vec<FileAsset> {
+/// List all assets in the given directory (recursively) and return a list of assets with metadata.
+/// Skipped files are logged with `log`, included files with `log_file`.
+pub(super) fn list_assets(
+    base_path: &Path,
+    embed: bool,
+    log: fn(&str),
+    log_file: fn(&str),
+) -> Vec<FileAsset> {
     let mut assets: Vec<FileAsset> = WalkDir::new(base_path)
         .into_iter()
         .filter_map(|entry| entry.ok())
@@ -54,7 +60,7 @@ pub(super) fn list_assets(base_path: &Path, embed: bool, log: fn(&str)) -> Vec<F
 
             // do not load assets into the binary in debug / development mode
             if !embed {
-                log(&format!("including {route} (dynamically)"));
+                log_file(&format!("including {route} (dynamically)"));
 
                 return Some(FileAsset {
                     route,
@@ -81,11 +87,11 @@ pub(super) fn list_assets(base_path: &Path, embed: bool, log: fn(&str)) -> Vec<F
             };
 
             if let Some(compressed_size) = compressed_bytes.as_ref().map(|b| b.len()) {
-                log(&format!(
+                log_file(&format!(
                     "including {route} {original_size} -> {compressed_size} bytes (compressed)"
                 ));
             } else {
-                log(&format!(
+                log_file(&format!(
                     "including {route} {original_size} bytes (uncompressed)"
                 ));
             }

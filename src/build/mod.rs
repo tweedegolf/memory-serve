@@ -8,6 +8,7 @@ mod list;
 
 const ASSET_FILE: &str = "memory_serve_assets.rs";
 const QUIET_ENV_NAME: &str = "MEMORY_SERVE_QUIET";
+const VERBOSE_ENV_NAME: &str = "MEMORY_SERVE_VERBOSE";
 
 pub use code::assets_to_code;
 
@@ -36,9 +37,15 @@ where
         .into();
 
     println!("cargo::rerun-if-env-changed={QUIET_ENV_NAME}");
+    println!("cargo::rerun-if-env-changed={VERBOSE_ENV_NAME}");
     fn log(msg: &str) {
-        if std::env::var(QUIET_ENV_NAME) != Ok("1".to_string()) {
+        if !env_flag(QUIET_ENV_NAME) {
             println!("cargo:warning={}", msg);
+        }
+    }
+    fn log_file(msg: &str) {
+        if env_flag(VERBOSE_ENV_NAME) {
+            log(msg);
         }
     }
 
@@ -49,7 +56,8 @@ where
         let asset_dir =
             fs::canonicalize(asset_dir.into()).expect("Could not canonicalize the provided path");
         let asset_dir_label = asset_dir.to_string_lossy();
-        let assets = code::assets_to_code(&asset_dir_label, &asset_dir, &out_dir, embed, log);
+        let assets =
+            code::generate_code(&asset_dir_label, &asset_dir, &out_dir, embed, log, log_file);
 
         println!("cargo::rerun-if-changed={asset_dir_label}");
 
@@ -63,6 +71,19 @@ where
     fs::write(target, code).expect("Unable to write memory-serve asset file.");
 }
 
+/// Whether an environment variable is set to a value other than empty, `0`,
+/// `false`, `no` or `off`
+fn env_flag(name: &str) -> bool {
+    std::env::var(name).is_ok_and(is_truthy)
+}
+
+fn is_truthy(value: String) -> bool {
+    !matches!(
+        value.trim().to_ascii_lowercase().as_str(),
+        "" | "0" | "false" | "no" | "off"
+    )
+}
+
 #[cfg(test)]
 /// Load assets directly from disk for use in integration tests.
 pub(super) fn load_test_assets<P: Into<PathBuf>>(path: P) -> &'static [crate::Asset] {
@@ -71,7 +92,7 @@ pub(super) fn load_test_assets<P: Into<PathBuf>>(path: P) -> &'static [crate::As
     }
 
     let embed = !cfg!(debug_assertions) || cfg!(feature = "force-embed");
-    let assets = list::list_assets(&path.into(), embed, log);
+    let assets = list::list_assets(&path.into(), embed, log, log);
 
     let assets = assets
         .into_iter()
@@ -99,4 +120,19 @@ pub(super) fn load_test_assets<P: Into<PathBuf>>(path: P) -> &'static [crate::As
         .collect::<Vec<_>>();
 
     Box::leak(assets.into_boxed_slice())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_truthy;
+
+    #[test]
+    fn truthy_env_values() {
+        for value in ["1", "true", "TRUE", "yes", "on"] {
+            assert!(is_truthy(value.to_string()), "{value}");
+        }
+        for value in ["", " ", "0", "false", "False", "no", "off"] {
+            assert!(!is_truthy(value.to_string()), "{value:?}");
+        }
+    }
 }

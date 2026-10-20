@@ -78,7 +78,15 @@ Use the `force-embed` feature flag to always include assets in the binary - also
 
 ### Environment variables
 
-Use `MEMORY_SERVE_QUIET=1` to not print log messages at compile time.
+These are read by the build script, so set them when running `cargo build`
+(or `cargo test`, `cargo run`), for instance in your shell or in the `[env]`
+section of `.cargo/config.toml`. They have no effect on the running program.
+
+- `MEMORY_SERVE_QUIET=1` suppresses all messages at compile time.
+- `MEMORY_SERVE_VERBOSE=1` also prints a message for every included file.
+
+Any value other than empty, `0`, `false`, `no` or `off` enables a variable.
+See [Logging](#logging) to filter the log messages of the running program.
 
 ## Example
 
@@ -137,34 +145,44 @@ builds (where assets are served dynamically).
 
 ## Logging
 
-During compilation, problems that occur with the inclusion or compression
-of assets are logged as a warning from the build script:
+During compilation, the build script logs the asset directory, any skipped
+files and a summary as warnings:
 
 ```txt
 warning: memory-serve-test@0.0.0: Loading static assets from /home/user/project/my-project/static
-warning: memory-serve-test@0.0.0: Embedding assets into binary
+warning: memory-serve-test@0.0.0: skipping file /empty.txt: file empty
+warning: memory-serve-test@0.0.0: Embedding 7 assets into binary
+```
+
+With `MEMORY_SERVE_VERBOSE=1` every included file is logged as well, and
+`MEMORY_SERVE_QUIET=1` suppresses all of these messages, see
+[Environment variables](#environment-variables):
+
+```txt
 warning: memory-serve-test@0.0.0: including /blog/index.html 431 -> 175 bytes (compressed)
 ```
 
-When running the resulting executable, all registered routes and asset
-sizes are logged using the [`tracing`](https://docs.rs/tracing/latest/tracing/)
+When running the resulting executable, a summary of the router is logged at
+the `INFO` level using the [`tracing`](https://docs.rs/tracing/latest/tracing/)
 crate. To print or log them, use [`tracing-subscriber`](https://docs.rs/tracing/latest/tracing_subscriber/).
 Example output:
 
 ```txt
- INFO memory_serve: serving /assets/icon.jpg 1366 bytes
- INFO memory_serve: serving /assets/index.css 1552 -> 509 bytes (compressed)
- INFO memory_serve: serving /assets/index.js 20 bytes
- INFO memory_serve: serving /assets/stars.svg 2255 -> 907 bytes (compressed)
- INFO memory_serve: serving /index.html 437 -> 178 bytes (compressed)
  INFO memory_serve: serving /index.html as index on /
+ INFO memory_serve: serving 7 assets (4 on hashed routes)
 ```
 
-With hashed routes enabled, each hashed route is logged as well:
+Every registered route, asset size and hashed route is logged at the `DEBUG`
+level:
 
 ```txt
- INFO memory_serve: serving /assets/index.css on hashed route /assets/index.ec4edeea111c8549.css
+DEBUG memory_serve: serving /assets/index.css 1552 -> 509 bytes (compressed)
+DEBUG memory_serve: serving /assets/index.css on hashed route /assets/index.ec4edeea111c8549.css
 ```
+
+All messages use the `memory_serve` target, so they can be filtered like any
+other crate, for instance with `RUST_LOG=memory_serve=warn` when using
+`tracing-subscriber`'s `EnvFilter`.
 
 ## Cache control
 
