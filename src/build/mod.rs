@@ -2,6 +2,8 @@ use std::path::PathBuf;
 
 use fs_err as fs;
 
+use crate::util::path::normalize_path;
+
 mod code;
 mod file_asset;
 mod list;
@@ -55,6 +57,9 @@ where
     for (name, asset_dir) in named_paths {
         let asset_dir =
             fs::canonicalize(asset_dir.into()).expect("Could not canonicalize the provided path");
+        // `canonicalize` yields a verbatim (`\\?\`) path on Windows; strip the
+        // prefix so the generated paths and log messages stay readable
+        let asset_dir = normalize_path(&asset_dir);
         let asset_dir_label = asset_dir.to_string_lossy();
         let assets =
             code::generate_code(&asset_dir_label, &asset_dir, &out_dir, embed, log, log_file);
