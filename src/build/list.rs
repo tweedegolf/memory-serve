@@ -42,6 +42,26 @@ pub(super) fn list_assets(
                 return None;
             };
 
+            // the generated code and the route need a UTF-8 path
+            if entry.path().to_str().is_none() {
+                log(&format!(
+                    "skipping file {}: path is not valid UTF-8",
+                    entry.path().display()
+                ));
+                return None;
+            }
+
+            // axum panics on these, even after `without_v07_checks`, once merged
+            if route
+                .split('/')
+                .any(|segment| segment.starts_with([':', '*']))
+            {
+                log(&format!(
+                    "skipping file {route}: axum does not route path segments starting with `:` or `*`"
+                ));
+                return None;
+            }
+
             // skip empty
             if original_size == 0 {
                 log(&format!("skipping file {route}: file empty"));
@@ -110,4 +130,33 @@ pub(super) fn list_assets(
     assets.sort();
 
     assets
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use std::{ffi::OsStr, os::unix::ffi::OsStrExt};
+
+    use fs_err as fs;
+
+    #[test]
+    fn skips_unroutable_files() {
+        let dir = std::env::temp_dir().join(format!("memory-serve-list-{}", std::process::id()));
+        fs::create_dir_all(dir.join(":dir")).unwrap();
+        for name in [
+            OsStr::new("ok.css"),
+            OsStr::new("a:b.css"),
+            OsStr::new(":colon.css"),
+            OsStr::new("*star.css"),
+            OsStr::new(":dir/x.css"),
+            OsStr::from_bytes(b"bad\xff.css"),
+        ] {
+            fs::write(dir.join(name), "x").unwrap();
+        }
+
+        let assets = super::list_assets(&dir, false, |_| {}, |_| {});
+        fs::remove_dir_all(&dir).unwrap();
+
+        let routes: Vec<&str> = assets.iter().map(|a| a.route.as_str()).collect();
+        assert_eq!(routes, ["/a:b.css", "/ok.css"]);
+    }
 }

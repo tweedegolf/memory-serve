@@ -1,10 +1,11 @@
 #![allow(clippy::needless_doctest_main)]
 #![doc = include_str!("../README.md")]
 use axum::{
+    handler::Handler,
     http::{HeaderMap, StatusCode},
     routing::get,
 };
-use std::future::ready;
+use std::{collections::HashSet, future::ready};
 use tracing::{debug, info, warn};
 
 mod asset;
@@ -214,6 +215,7 @@ impl MemoryServe {
 
         let mut dynamic_count = 0;
         let mut hashed_count = 0;
+        let mut routed = HashSet::new();
 
         for asset in self.assets {
             let (uncompressed_bytes, brotli_bytes, gzip_bytes) = asset.leak_bytes(options);
@@ -264,12 +266,12 @@ impl MemoryServe {
                 if asset.route == index {
                     info!("serving {} as index on /", asset.route);
 
-                    router = router.route("/", get(handler));
+                    router = add_route(router, &mut routed, "/", asset.route, handler);
                 } else if options.index_on_subdirectories && asset.route.ends_with(index) {
                     let path = &asset.route[..asset.route.len() - index.len()];
                     debug!("serving {} as index on {}", asset.route, path);
 
-                    router = router.route(path, get(handler));
+                    router = add_route(router, &mut routed, path, asset.route, handler);
                 }
             }
 
@@ -278,14 +280,14 @@ impl MemoryServe {
             } else {
                 asset.route
             };
-            router = router.route(path, get(handler));
+            router = add_route(router, &mut routed, path, asset.route, handler);
 
             // add all aliases that point to the asset route
             for (from, to) in self.aliases.iter() {
                 if *to == asset.route {
                     debug!("serving {} on alias {}", asset.route, from);
 
-                    router = router.route(from, get(handler));
+                    router = add_route(router, &mut routed, from, asset.route, handler);
                 }
             }
 
@@ -300,9 +302,12 @@ impl MemoryServe {
                     hashed_options
                 };
 
-                router = router.route(
+                router = add_route(
+                    router,
+                    &mut routed,
                     &hashed,
-                    get(move |headers: HeaderMap| {
+                    asset.route,
+                    move |headers: HeaderMap| {
                         ready(asset.handler(
                             &headers,
                             StatusCode::OK,
@@ -311,7 +316,7 @@ impl MemoryServe {
                             gzip_bytes,
                             hashed_options,
                         ))
-                    }),
+                    },
                 );
             }
         }
@@ -332,6 +337,28 @@ impl MemoryServe {
 
         router
     }
+}
+
+/// Add a GET route, skipping paths that are already routed (e.g. `/blog.html`
+/// and `/blog/index.html` both on `/blog`), which axum would reject with a panic.
+fn add_route<S, H, T>(
+    router: axum::Router<S>,
+    routed: &mut HashSet<String>,
+    path: &str,
+    asset_route: &str,
+    handler: H,
+) -> axum::Router<S>
+where
+    H: Handler<T, S>,
+    T: 'static,
+    S: Clone + Send + Sync + 'static,
+{
+    if !routed.insert(path.to_string()) {
+        warn!("not serving {asset_route} on {path}, that route is already served");
+        return router;
+    }
+
+    router.route(path, get(handler))
 }
 
 #[cfg(test)]
@@ -606,6 +633,37 @@ mod tests {
         let length = get_header(&headers, &CONTENT_LENGTH);
         assert_eq!(code, 200);
         assert_eq!(length.parse::<i32>().unwrap(), 437);
+
+        // a matching etag only yields 304 when the fallback status is a success
+        let etag = "\"0639dc8aac157b58c74f65bbb026b2fd42bc81d9a0a64141df456fa23c214537\"";
+        let (code, _) = get(memory_router, "/foobar", "If-None-Match", etag).await;
+        assert_eq!(code, 304);
+
+        let memory_router = test_load!().fallback(Some("/index.html")).into_router();
+        for if_none_match in [etag, "*"] {
+            let (code, _) = get(
+                memory_router.clone(),
+                "/foobar",
+                "If-None-Match",
+                if_none_match,
+            )
+            .await;
+            assert_eq!(code, 404, "{if_none_match}");
+        }
+    }
+
+    #[tokio::test]
+    async fn duplicate_routes() {
+        // the alias collides with the clean url of /about.html, which used to
+        // panic; the first registered route wins
+        let memory_router = test_load!()
+            .enable_clean_url(true)
+            .add_alias("/about", "/index.html")
+            .into_router();
+
+        let (code, headers) = get(memory_router, "/about", "accept", "*").await;
+        assert_eq!(code, 200);
+        assert_eq!(get_header(&headers, &CONTENT_LENGTH), "432");
     }
 
     #[tokio::test]

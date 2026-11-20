@@ -36,6 +36,8 @@ pub(crate) fn encoding_qvalue(headers: &HeaderMap, encoding: &str) -> Option<f32
     for item in header_value
         .split_whitespace()
         .collect::<String>()
+        // codings and the `q` parameter are case-insensitive (RFC 9110 §8.4.1)
+        .to_ascii_lowercase()
         .split(',')
     {
         if item.is_empty() {
@@ -99,6 +101,9 @@ mod tests {
         // Absent and refused.
         assert_eq!(qvalue("gzip", "br"), None);
         assert_eq!(qvalue("gzip;q=0", "gzip"), None);
+        // Codings and the q parameter are case-insensitive.
+        assert_eq!(qvalue("GZIP;Q=0.5", "gzip"), Some(0.5));
+        assert_eq!(qvalue("Br", "br"), Some(1.0));
     }
 
     #[test]

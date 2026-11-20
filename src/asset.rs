@@ -91,7 +91,10 @@ impl<B: IntoResponse> AssetResponse<'_, B> {
             headers.extend([VARY_HEADER]);
         }
 
-        if let Some(if_none_match) = self.headers.get(IF_NONE_MATCH)
+        // RFC 9110 §13.2.1: preconditions only apply to successful responses,
+        // so a fallback served with e.g. 404 never turns into a 304
+        if self.status.is_success()
+            && let Some(if_none_match) = self.headers.get(IF_NONE_MATCH)
             && let Ok(if_none_match) = if_none_match.to_str()
             && if_none_match_matches(if_none_match, &quoted_etag)
         {
