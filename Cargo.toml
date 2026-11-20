@@ -1,6 +1,6 @@
 [package]
 name = "memory-serve"
-version = "2.5.1"
+version = "2.5.2"
 edition = "2024"
 license = "Apache-2.0 OR MIT"
 repository = "https://github.com/tweedegolf/memory-serve"
@@ -15,7 +15,7 @@ force-embed = []
 
 [dependencies]
 axum = "0.8"
-brotli = "9.0"
+brotli = "9.1"
 flate2 = "1.1"
 fs-err = "3.3.0"
 mime_guess = "2.0"
